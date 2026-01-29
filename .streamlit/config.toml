@@ -1,0 +1,6 @@
+[theme]
+font = "Segoe UI Variable Display"
+codeFont = "Consolas"
+base = "dark"
+[ui]
+hideTopBar = true
