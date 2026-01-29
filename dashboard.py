@@ -1,8 +1,6 @@
 import streamlit as st
 import datetime as dt
-import python_weather as pw
-import asyncio
-import time
+
 
 st.title("Dashboard")
 col1, col2 = st.columns(2)
