@@ -1,10 +1,6 @@
 import streamlit as st
 st.set_page_config(page_title="Better PESU", page_icon=":books:", layout="wide")
-# st.markdown("""
-# <style>
-#     #root > div:nth-child(1) > div > div > div > div > section > div {padding-top: 0rem;}
-# </style>
-# """,unsafe_allow_html=True)
+st.logo("logo.png")
 
 pg = st.navigation([
     st.Page("dashboard.py",title="Dashboard",icon=":material/dashboard:"),
