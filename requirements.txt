@@ -3,3 +3,4 @@ toml
 st-theme
 pesuacademy
 lxml
+extra-streamlit-components
