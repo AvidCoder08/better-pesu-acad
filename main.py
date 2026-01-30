@@ -33,8 +33,8 @@ if not st.session_state.logged_in:
         st.session_state.pesu_password = saved_session.get('password')
 
 logo_svg = """
-<svg width="200" height="50">
-  <text x="0" y="40" font-family="Segoe UI Variable Display" font-size="40" fill='#fafafa'>Hail Mary</text>
+<svg width="300" height="50">
+  <text x="0" y="40" font-family="Roboto" font-size="40" fill='#fafafa'>Hail Mary (Beta)</text>
 </svg>
 """
 st.logo(logo_svg)
