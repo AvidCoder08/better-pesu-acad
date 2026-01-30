@@ -1,4 +1,3 @@
 [theme]
-font = "Segoe UI Variable Display"
-codeFont = "Consolas"
-base = "dark"
+font = 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+base = 'dark'
