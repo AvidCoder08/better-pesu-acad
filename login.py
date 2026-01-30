@@ -47,7 +47,7 @@ def main():
     
     # Check if user is already logged in
     if 'logged_in' in st.session_state and st.session_state.logged_in:
-        st.success("✓ You are already logged in!")
+        st.success("You are already logged in!")
         
         # Display user info
         if isinstance(st.session_state.profile, dict):

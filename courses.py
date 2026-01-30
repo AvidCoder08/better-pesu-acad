@@ -1,22 +1,210 @@
 import streamlit as st
-st.title("Courses")
+import asyncio
+from pesuacademy import PESUAcademy
+import json
+import os
 
-def options_choice(sub,unit,mat):
-    #write code here
-    st.pdf(f"files/{sub}/{unit}/{mat}.pdf")
+# Check if user is logged in
+if not st.session_state.get('logged_in', False):
+    st.warning("⚠️ Please login first")
+    st.page_link("login.py", label="Go to Login", icon="🔐")
+    st.stop()
+
+st.title("📚 Courses & Materials")
+
+# Get profile to determine current semester
+profile = st.session_state.profile
+if isinstance(profile, dict):
+    personal = profile.get('personal', {})
+    sem_str = personal.get('semester', '1') if isinstance(personal, dict) else personal.get('semester', '1')
+else:
+    sem_str = profile.personal.semester
+
+# Parse semester
+try:
+    if isinstance(sem_str, str):
+        current_sem = int(sem_str.split('-')[-1]) if '-' in sem_str else int(sem_str)
+    else:
+        current_sem = int(sem_str)
+except:
+    current_sem = 1
+
+async def fetch_courses(semester):
+    """Fetch courses from PESU Academy API"""
+    try:
+        pesu = await PESUAcademy.login(
+            st.session_state.pesu_username,
+            st.session_state.pesu_password
+        )
+        courses = await pesu.get_courses(semester)
+        await pesu.close()
+        return courses, None
+    except Exception as e:
+        return None, str(e)
+
+async def fetch_units(course_id):
+    """Fetch units for a course"""
+    try:
+        pesu = await PESUAcademy.login(
+            st.session_state.pesu_username,
+            st.session_state.pesu_password
+        )
+        units = await pesu.get_units_for_course(course_id)
+        await pesu.close()
+        return units, None
+    except Exception as e:
+        return None, str(e)
+
+async def fetch_topics(unit_id):
+    """Fetch topics for a unit"""
+    try:
+        pesu = await PESUAcademy.login(
+            st.session_state.pesu_username,
+            st.session_state.pesu_password
+        )
+        topics = await pesu.get_topics_for_unit(unit_id)
+        await pesu.close()
+        return topics, None
+    except Exception as e:
+        return None, str(e)
+
+async def fetch_materials(topic, material_type_id):
+    """Fetch material links for a topic"""
+    try:
+        pesu = await PESUAcademy.login(
+            st.session_state.pesu_username,
+            st.session_state.pesu_password
+        )
+        materials = await pesu.get_material_links(topic, material_type_id)
+        await pesu.close()
+        return materials, None
+    except Exception as e:
+        return None, str(e)
+
+# Semester selector
+selected_sem = st.selectbox(
+    "Select Semester:",
+    options=list(range(1, current_sem + 1)),
+    index=current_sem - 1,
+    key="course_semester_selector"
+)
+
+# Fetch courses button
+if st.button("📥 Fetch Courses", type="primary", use_container_width=True):
+    with st.spinner(f"Fetching semester {selected_sem} courses..."):
+        courses_dict, error = asyncio.run(fetch_courses(selected_sem))
+        
+        if error:
+            st.error(f"Failed to fetch courses: {error}")
+        elif courses_dict:
+            # Store courses in session state
+            st.session_state.courses = courses_dict.get(selected_sem, [])
+            st.success(f"✓ Fetched {len(st.session_state.courses)} courses!")
+        else:
+            st.error("No courses data returned")
+
+# Display courses if available
+if 'courses' in st.session_state and st.session_state.courses:
+    st.markdown("---")
+    st.subheader(f"Semester {selected_sem} Courses")
     
-option1 = st.selectbox(label="Select Subject/Course",
-             options=("Programming in C","Engineering Chemistry","Engineering Mechanic-Statics","Electronic Principles and Devices","Engineering Math 2","Constitution of India, Cyber Law and Personal Ethics"),
-             index=None,)
-option2 = st.selectbox(label="Select Unit",
-                       options=("Unit 1","Unit 2","Unit 3","Unit 4"),
-                       index=None)
-option3 = st.selectbox(label="Choose material to view",
-                       options=("Slides","Notes","QB","QA","Assignment","MCQs"),
-                       index=None)
-if option1 == None or option2 == None or option3 == None:
-    st.warning("Select required criteria before viewing your materials")
+    # Create course selection
+    course_options = {f"{course.code} - {course.title}": course for course in st.session_state.courses}
+    
+    selected_course_name = st.selectbox(
+        "Select Course:",
+        options=list(course_options.keys()),
+        key="selected_course"
+    )
+    
+    if selected_course_name:
+        selected_course = course_options[selected_course_name]
+        
+        # Display course info
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Course Code", selected_course.code)
+        with col2:
+            st.metric("Type", selected_course.type)
+        with col3:
+            st.metric("Status", selected_course.status)
+        
+        # Fetch units for selected course
+        if st.button("📖 Load Units & Materials", type="secondary"):
+            with st.spinner("Loading units..."):
+                units, error = asyncio.run(fetch_units(selected_course.id))
+                
+                if error:
+                    st.error(f"Failed to fetch units: {error}")
+                elif units:
+                    st.session_state.current_units = units
+                    st.session_state.current_course_id = selected_course.id
+                    st.success(f"✓ Loaded {len(units)} units!")
+                else:
+                    st.info("No units found for this course")
+        
+        # Display units and materials
+        if 'current_units' in st.session_state and st.session_state.current_units and st.session_state.get('current_course_id') == selected_course.id:
+            st.markdown("---")
+            st.subheader("📑 Course Materials")
+            
+            for unit in st.session_state.current_units:
+                with st.expander(f"📘 {unit.title}"):
+                    if st.button(f"Load Topics for {unit.title}", key=f"load_topics_{unit.id}"):
+                        with st.spinner(f"Loading topics for {unit.title}..."):
+                            topics, error = asyncio.run(fetch_topics(unit.id))
+                            
+                            if error:
+                                st.error(f"Failed to fetch topics: {error}")
+                            else:
+                                st.session_state[f"topics_{unit.id}"] = topics
+                                st.rerun()
+                    
+                    # Display topics if loaded
+                    if f"topics_{unit.id}" in st.session_state:
+                        topics = st.session_state[f"topics_{unit.id}"]
+                        
+                        for topic in topics:
+                            st.markdown(f"**📝 {topic.title}**")
+                            
+                            # Material type selector
+                            material_types = {
+                                "Lecture Notes": "1",
+                                "Assignments": "2",
+                                "Question Papers": "3",
+                                "Lab Materials": "4",
+                                "Additional Resources": "5"
+                            }
+                            
+                            cols = st.columns(len(material_types))
+                            for idx, (mat_name, mat_id) in enumerate(material_types.items()):
+                                with cols[idx]:
+                                    if st.button(mat_name, key=f"mat_{topic.id}_{mat_id}", use_container_width=True):
+                                        with st.spinner(f"Fetching {mat_name}..."):
+                                            materials, error = asyncio.run(fetch_materials(topic, mat_id))
+                                            
+                                            if error:
+                                                st.error(f"Error: {error}")
+                                            elif not materials:
+                                                st.info(f"No {mat_name} available")
+                                            else:
+                                                st.session_state[f"materials_{topic.id}_{mat_id}"] = materials
+                                                st.rerun()
+                            
+                            # Display materials if loaded
+                            for mat_name, mat_id in material_types.items():
+                                mat_key = f"materials_{topic.id}_{mat_id}"
+                                if mat_key in st.session_state:
+                                    materials = st.session_state[mat_key]
+                                    if materials:
+                                        st.markdown(f"**{mat_name}:**")
+                                        for material in materials:
+                                            if material.is_pdf:
+                                                st.markdown(f"📄 [{material.title}]({material.url})")
+                                            else:
+                                                st.markdown(f"🔗 [{material.title}]({material.url})")
+                            
+                            st.markdown("---")
 
-
-if st.button("View Material"):
-    options_choice(option1,option2,option3)
+else:
+    st.info("👆 Click 'Fetch Courses' to load your semester courses")

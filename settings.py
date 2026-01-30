@@ -101,7 +101,20 @@ with col_details:
         name_aadhar = get_value('name_as_in_aadhar')
         st.markdown(f"{name_aadhar if name_aadhar != 'N/A' else 'N/A'}")
     
-    # Edit button
-    st.markdown("")
-    if st.button("Edit", type="primary"):
-        st.info("Edit functionality coming soon!")
+    
+
+# Logout section
+st.divider()
+st.subheader("Account")
+
+if st.button("Logout", use_container_width=True, type="secondary",icon=":material/logout:"):
+    import os
+    SESSION_FILE = ".session_data.json"
+    if os.path.exists(SESSION_FILE):
+        os.remove(SESSION_FILE)
+    st.session_state.logged_in = False
+    st.session_state.profile = None
+    st.session_state.pesu_username = None
+    st.session_state.pesu_password = None
+    st.success("Logged out successfully!")
+    st.rerun()
