@@ -64,6 +64,21 @@ if st.session_state.logged_in and st.session_state.profile:
             semester = st.session_state.profile.personal.semester if hasattr(st.session_state.profile, 'personal') else 'N/A'
         st.caption(f"**{name}**")
         st.caption(f"{section} • Sem {semester}")
+        
+        st.divider()
+        
+        # Logout button
+        if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+            import os
+            SESSION_FILE = ".session_data.json"
+            if os.path.exists(SESSION_FILE):
+                os.remove(SESSION_FILE)
+            st.session_state.logged_in = False
+            st.session_state.profile = None
+            st.session_state.pesu_username = None
+            st.session_state.pesu_password = None
+            st.success("Logged out successfully!")
+            st.rerun()
 
 pg = st.navigation([
     st.Page("login.py", title="Login", icon=":material/login:"),
