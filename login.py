@@ -112,9 +112,10 @@ def main():
                             
                             st.success("✓ Login successful!")
                             st.rerun()
+
+if __name__ == "__main__":
+    main()
 st.markdown("""
 <footer>Your credentials, information, grades etc. are completely private and can be viewed by no one else except you. Your credentials are locally stored on your PC. This project uses the PESU API created and maintained by seniors and alumni of PESU<br>
         Made with ❤️ by Shashank Munnangi. <br> If you like this, consider tipping: <a href="https://www.upi.me/pay?pa=soham.s.munnangi@axl">Tip me!</a>. This motivates me to work more on this project!</footer>
 """,unsafe_allow_html=True)
-if __name__ == "__main__":
-    main()
