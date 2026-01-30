@@ -1,102 +1,13 @@
 import streamlit as st
-import json
-import os
-import hashlib
-import platform
-import socket
-from datetime import datetime
 
 st.set_page_config(page_title="Better PESU", page_icon=":books:", layout="wide")
 
-# Session management - ensure unique session per device
-SESSION_DIR = ".sessions"
-os.makedirs(SESSION_DIR, exist_ok=True)
-
-def get_machine_id():
-    """Generate a hardware-based machine ID that can't be spoofed"""
-    try:
-        # Combine multiple machine-specific identifiers
-        machine_name = socket.gethostname()
-        system = platform.system()
-        processor = platform.processor()
-        
-        # Create a hash from hardware identifiers
-        hw_string = f"{machine_name}:{system}:{processor}"
-        machine_id = hashlib.sha256(hw_string.encode()).hexdigest()[:16]
-        return machine_id
-    except:
-        return None
-
-def get_device_key_file():
-    """Get the path to the device key file stored locally"""
-    return os.path.join(SESSION_DIR, ".device_key")
-
-def get_or_create_device_key():
-    """Get existing device key or create a new one"""
-    import uuid
-    key_file = get_device_key_file()
-    machine_id = get_machine_id()
-    
-    if not machine_id:
-        # Fallback to UUID if machine ID fails
-        machine_id = str(uuid.uuid4())
-    
-    # Check if device key exists and matches this machine
-    if os.path.exists(key_file):
-        try:
-            with open(key_file, 'r') as f:
-                stored_id = f.read().strip()
-            # Verify it matches current machine
-            if stored_id == machine_id:
-                return stored_id
-        except:
-            pass
-    
-    # Store machine ID locally
-    os.makedirs(SESSION_DIR, exist_ok=True)
-    with open(key_file, 'w') as f:
-        f.write(machine_id)
-    
-    # Set file permissions on Unix systems
-    try:
-        os.chmod(key_file, 0o600)
-    except:
-        pass
-    
-    return machine_id
-
-def get_session_id():
-    """Get a truly device-specific session ID based on hardware"""
-    device_key = get_or_create_device_key()
-    return device_key
-
-def load_session():
-    """Load session data from device-specific file"""
-    session_id = get_session_id()
-    session_file = os.path.join(SESSION_DIR, f"session_{session_id}.json")
-    
-    if os.path.exists(session_file):
-        try:
-            with open(session_file, 'r') as f:
-                return json.load(f)
-        except:
-            return None
-    return None
-
-# Initialize session state on app load
+# Initialize session state - No file-based storage
+# Streamlit's session_state is already per-browser-session and secure
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'profile' not in st.session_state:
     st.session_state.profile = None
-
-# Restore saved session if it exists (only for this device)
-if not st.session_state.logged_in:
-    saved_session = load_session()
-    if saved_session:
-        st.session_state.logged_in = True
-        st.session_state.profile = saved_session.get('profile')
-        st.session_state.pesu_username = saved_session.get('username')
-        st.session_state.pesu_password = saved_session.get('password')
 
 logo_svg = """
 <svg width="300" height="50">

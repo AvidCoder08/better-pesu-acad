@@ -66,10 +66,9 @@ with col_details:
         
         st.markdown("**SRN**")
         st.markdown(f"{get_value('srn')}")
-        st.markdown("")
         
-        st.markdown("**Program**")
-        st.markdown(f"{get_value('program')}")
+        
+        
     
     with detail_col2:
         st.markdown("**Branch**")
@@ -84,6 +83,10 @@ with col_details:
         st.markdown(f"{get_value('section')}")
     
     with detail_col3:
+        st.markdown("**Program**")
+        st.markdown(f"{get_value('program')}")
+        st.markdown("")
+        
         st.markdown("**Email ID**")
         st.markdown(f"{get_value('email_id')}")
         st.markdown("")
@@ -101,10 +104,6 @@ st.divider()
 st.header("Account")
 
 if st.button("Logout", use_container_width=True, type="secondary",icon=":material/logout:"):
-    import os
-    SESSION_FILE = ".session_data.json"
-    if os.path.exists(SESSION_FILE):
-        os.remove(SESSION_FILE)
     st.session_state.logged_in = False
     st.session_state.profile = None
     st.session_state.pesu_username = None
@@ -118,7 +117,7 @@ st.markdown("""
 ## About
 Hail Mary is an alternative to PESU Academy (which we know sucks), it is still in Beta stages. You may experience some bugs. You can raise issues on my [Github Page](https://github.com/AvidCoder08/better-pesu-acad/issues)
 ## Privacy
-Your credentials, information, grades etc. are completely private and can be viewed by no one else except you. Your credentials are locally stored on your PC. This project uses the PESU API created and maintained by seniors and alumni of PESU
+Your session is stored securely in your browser. Each device requires its own login. Your data never leaves your device except when communicating with PESU Academy servers. This project uses the PESU API created and maintained by seniors and alumni of PESU.
 """)
 st.markdown("""
 <footer>Made with ❤️ by Shashank Munnangi. <br> If you like this, consider tipping: <a href="https://www.upi.me/pay?pa=soham.s.munnangi@axl">Tip me!</a>. This motivates me to work more on this project!</footer>
