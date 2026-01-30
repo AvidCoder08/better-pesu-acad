@@ -92,14 +92,7 @@ with col_details:
         st.markdown(f"{get_value('contact_no')}")
         st.markdown("")
         
-        st.markdown("**Aadhar No**")
-        aadhar = get_value('aadhar_no')
-        st.markdown(f"{aadhar if aadhar != 'N/A' else 'N/A'}")
-        st.markdown("")
         
-        st.markdown("**Name as in aadhar**")
-        name_aadhar = get_value('name_as_in_aadhar')
-        st.markdown(f"{name_aadhar if name_aadhar != 'N/A' else 'N/A'}")
     
     
 
