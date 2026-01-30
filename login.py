@@ -5,9 +5,11 @@ import extra_streamlit_components as stx
 from pesuacademy import PESUAcademy
 
 # Initialize cookie manager
-@st.cache_resource
 def get_cookie_manager():
-    return stx.CookieManager()
+    """Get or create cookie manager instance stored in session state"""
+    if 'cookie_manager' not in st.session_state:
+        st.session_state.cookie_manager = stx.CookieManager(key='pesu_cookie_manager')
+    return st.session_state.cookie_manager
 
 def save_session_cookie(username, password, profile):
     """Save session to browser cookie"""
