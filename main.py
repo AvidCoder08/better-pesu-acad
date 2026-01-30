@@ -1,13 +1,30 @@
 import streamlit as st
+import json
+import extra_streamlit_components as stx
 
 st.set_page_config(page_title="Better PESU", page_icon=":books:", layout="wide")
 
-# Initialize session state - No file-based storage
-# Streamlit's session_state is already per-browser-session and secure
+# Initialize cookie manager (stores data in browser)
+cookie_manager = stx.CookieManager()
+
+# Initialize session state
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'profile' not in st.session_state:
     st.session_state.profile = None
+
+# Try to restore session from browser cookies
+if not st.session_state.logged_in:
+    try:
+        session_cookie = cookie_manager.get('pesu_session')
+        if session_cookie:
+            session_data = json.loads(session_cookie)
+            st.session_state.logged_in = True
+            st.session_state.profile = session_data.get('profile')
+            st.session_state.pesu_username = session_data.get('username')
+            st.session_state.pesu_password = session_data.get('password')
+    except:
+        pass  # Cookie not found or invalid
 
 logo_svg = """
 <svg width="300" height="50">

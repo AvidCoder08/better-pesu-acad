@@ -1,6 +1,41 @@
 import streamlit as st
 import asyncio
+import json
+import extra_streamlit_components as stx
 from pesuacademy import PESUAcademy
+
+# Initialize cookie manager
+@st.cache_resource
+def get_cookie_manager():
+    return stx.CookieManager()
+
+def save_session_cookie(username, password, profile):
+    """Save session to browser cookie"""
+    cookie_manager = get_cookie_manager()
+    
+    # Convert profile to dict
+    if hasattr(profile, 'model_dump'):
+        profile_dict = profile.model_dump()
+    elif hasattr(profile, 'dict'):
+        profile_dict = profile.dict()
+    elif isinstance(profile, dict):
+        profile_dict = profile
+    else:
+        profile_dict = profile.__dict__ if hasattr(profile, '__dict__') else {}
+    
+    session_data = {
+        'username': username,
+        'password': password,
+        'profile': profile_dict
+    }
+    
+    # Save to browser cookie (expires in 30 days)
+    cookie_manager.set('pesu_session', json.dumps(session_data), max_age=30*24*60*60)
+
+def clear_session_cookie():
+    """Clear session cookie"""
+    cookie_manager = get_cookie_manager()
+    cookie_manager.delete('pesu_session')
 
 async def login_user(username, password):
     """Async function to login to PESU Academy"""
@@ -49,6 +84,7 @@ def main():
             st.session_state.profile = None
             st.session_state.pesu_username = None
             st.session_state.pesu_password = None
+            clear_session_cookie()
             st.success("Logged out successfully!")
             st.rerun()
     else:
@@ -75,6 +111,9 @@ def main():
                             st.session_state.profile = profile
                             st.session_state.pesu_username = username
                             st.session_state.pesu_password = password
+                            
+                            # Save session to browser cookie
+                            save_session_cookie(username, password, profile)
                             
                             st.success("✓ Login successful!")
                             st.rerun()

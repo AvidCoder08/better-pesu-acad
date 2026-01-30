@@ -86,7 +86,7 @@ with col_details:
         st.markdown("**Program**")
         st.markdown(f"{get_value('program')}")
         st.markdown("")
-        
+
         st.markdown("**Email ID**")
         st.markdown(f"{get_value('email_id')}")
         st.markdown("")
@@ -104,6 +104,12 @@ st.divider()
 st.header("Account")
 
 if st.button("Logout", use_container_width=True, type="secondary",icon=":material/logout:"):
+    # Clear browser cookie
+    import extra_streamlit_components as stx
+    cookie_manager = stx.CookieManager()
+    cookie_manager.delete('pesu_session')
+    
+    # Clear session state
     st.session_state.logged_in = False
     st.session_state.profile = None
     st.session_state.pesu_username = None
