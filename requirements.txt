@@ -1,3 +1,4 @@
 streamlit[pdf]
 toml
 st-theme
+pesuacademy
