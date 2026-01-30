@@ -106,7 +106,7 @@ st.header("Account")
 if st.button("Logout", use_container_width=True, type="secondary",icon=":material/logout:"):
     # Clear browser cookie
     import extra_streamlit_components as stx
-    cookie_manager = stx.CookieManager()
+    cookie_manager = stx.CookieManager(key='settings_cookie_manager')
     cookie_manager.delete('pesu_session')
     
     # Clear session state

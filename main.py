@@ -5,7 +5,7 @@ import extra_streamlit_components as stx
 st.set_page_config(page_title="Better PESU", page_icon=":books:", layout="wide")
 
 # Initialize cookie manager (stores data in browser)
-cookie_manager = stx.CookieManager()
+cookie_manager = stx.CookieManager(key='main_cookie_manager')
 
 # Initialize session state
 if 'logged_in' not in st.session_state:

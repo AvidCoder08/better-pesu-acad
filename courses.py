@@ -99,7 +99,7 @@ if st.button("📥 Fetch Courses", type="primary", use_container_width=True):
         elif courses_dict:
             # Store courses in session state
             st.session_state.courses = courses_dict.get(selected_sem, [])
-            st.success(f"✓ Fetched {len(st.session_state.courses)} courses!")
+            st.success(f"Fetched {len(st.session_state.courses)} courses!",icon=":material/check:")
         else:
             st.error("No courses data returned")
 
@@ -139,7 +139,7 @@ if 'courses' in st.session_state and st.session_state.courses:
                 elif units:
                     st.session_state.current_units = units
                     st.session_state.current_course_id = selected_course.id
-                    st.success(f"✓ Loaded {len(units)} units!")
+                    st.success(f"Loaded {len(units)} units!",icon=":material/check:")
                 else:
                     st.info("No units found for this course")
         

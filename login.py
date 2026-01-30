@@ -117,7 +117,7 @@ def main():
                             # Save session to browser cookie
                             save_session_cookie(username, password, profile)
                             
-                            st.success("✓ Login successful!")
+                            st.success("Login successful!",icon=":material/check:")
                             st.rerun()
 
 if __name__ == "__main__":
