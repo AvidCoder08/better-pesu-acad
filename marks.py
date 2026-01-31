@@ -2,6 +2,9 @@ import streamlit as st
 import asyncio
 import pandas as pd
 from pesuacademy import PESUAcademy
+from session_utils import restore_session_from_cookie
+
+restore_session_from_cookie()
 
 # Check if user is logged in
 if not st.session_state.get('logged_in', False):

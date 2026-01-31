@@ -3,6 +3,9 @@ import asyncio
 from pesuacademy import PESUAcademy
 import json
 import os
+from session_utils import restore_session_from_cookie
+
+restore_session_from_cookie()
 
 # Check if user is logged in
 if not st.session_state.get('logged_in', False):

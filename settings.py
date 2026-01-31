@@ -1,6 +1,9 @@
 import streamlit as st
 import base64
 from io import BytesIO
+from session_utils import get_cookie_manager, restore_session_from_cookie
+
+restore_session_from_cookie()
 
 # Check if user is logged in
 if not st.session_state.get('logged_in', False):
@@ -105,8 +108,7 @@ st.header("Account")
 
 if st.button("Logout", use_container_width=True, type="secondary",icon=":material/logout:"):
     # Clear browser cookie
-    import extra_streamlit_components as stx
-    cookie_manager = stx.CookieManager(key='settings_cookie_manager')
+    cookie_manager = get_cookie_manager()
     cookie_manager.delete('pesu_session')
     
     # Clear session state
