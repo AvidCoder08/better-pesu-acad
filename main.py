@@ -48,6 +48,7 @@ pg = st.navigation([page for page in [
     st.Page("login.py", title="Login", icon=":material/login:") if not st.session_state.logged_in else None,
     st.Page("dashboard.py",title="Dashboard",icon=":material/dashboard:"),
     st.Page("courses.py", title="Courses",icon=":material/backpack:"),
+    st.Page("attendance.py", title="Attendance",icon=":material/assignment_turned_in:"),
     st.Page("marks.py", title="Grades",icon=":material/trophy:"),
     st.Page("settings.py",title="Settings",icon=":material/settings:")
 ] if page is not None])
