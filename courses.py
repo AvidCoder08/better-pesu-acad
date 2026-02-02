@@ -4,6 +4,8 @@ from pesuacademy import PESUAcademy
 import json
 import os
 from session_utils import restore_session_from_cookie
+from role_utils import get_class_id, is_cr
+from firebase_utils import get_firestore_client
 
 restore_session_from_cookie()
 
@@ -15,8 +17,59 @@ if not st.session_state.get('logged_in', False):
 
 st.title("📚 Courses & Materials")
 
-# Get profile to determine current semester
+# Get profile early for role checks
 profile = st.session_state.profile
+
+material_source = st.radio(
+    "Choose material source:",
+    options=["PESU Academy", "Teacher Files"],
+    horizontal=True,
+)
+
+if material_source == "Teacher Files":
+    try:
+        db = get_firestore_client()
+    except Exception as exc:
+        st.error(f"Teacher files are unavailable: {exc}")
+        st.stop()
+
+    class_id = get_class_id(profile)
+    st.subheader("Teacher Files")
+    st.caption(f"Class: {class_id}")
+
+    if is_cr(profile):
+        st.page_link("admin.py", label="Go to Class Admin", icon="🛡️")
+
+    course_filter = st.text_input("Filter by course code (optional)", placeholder="UE22CS202")
+    materials = []
+    query = db.collection("teacher_materials").where("class_id", "==", class_id)
+    if course_filter.strip():
+        query = query.where("course_code", "==", course_filter.strip())
+
+    for doc in query.stream():
+        data = doc.to_dict() or {}
+        data["id"] = doc.id
+        materials.append(data)
+
+    if not materials:
+        st.info("No teacher materials found for your class.")
+    else:
+        materials = sorted(materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
+        for item in materials:
+            title = item.get("course_title") or item.get("course_code") or "Course"
+            filename = item.get("filename", "file")
+            with st.expander(f"{title} • {filename}"):
+                st.write(f"Course: {item.get('course_code', '')}")
+                st.write(f"Uploaded at: {item.get('uploaded_at', '')}")
+                drive_link = item.get("drive_link")
+                if drive_link:
+                    st.link_button("Open in Google Drive", drive_link, type="primary")
+                else:
+                    st.error("Drive link unavailable")
+
+    st.stop()
+
+# Get profile to determine current semester
 if isinstance(profile, dict):
     personal = profile.get('personal', {})
     sem_str = personal.get('semester', '1') if isinstance(personal, dict) else personal.get('semester', '1')

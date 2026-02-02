@@ -4,3 +4,7 @@ st-theme
 pesuacademy
 lxml
 extra-streamlit-components
+firebase-admin
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client

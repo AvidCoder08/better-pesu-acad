@@ -1,6 +1,9 @@
 import streamlit as st
 import datetime as dt
+from datetime import date
 from session_utils import restore_session_from_cookie
+from firebase_utils import get_firestore_client
+from role_utils import is_superadmin
 
 restore_session_from_cookie()
 
@@ -86,3 +89,102 @@ with col2:
     for task in tasks:
         if task_c.checkbox(label=task):
             todo_list.finish_task(task)
+
+# Academic Calendar Section
+st.divider()
+st.header("📅 Academic Calendar")
+st.caption("Managed by superadmin")
+
+if is_superadmin(profile):
+    st.page_link("superadmin.py", label="Manage Calendar", icon="🛡️")
+
+def _parse_date(value):
+    try:
+        return date.fromisoformat(value) if value else None
+    except Exception:
+        return None
+
+events = []
+try:
+    db = get_firestore_client()
+    for doc in db.collection("calendar_events").stream():
+        data = doc.to_dict() or {}
+        events.append({
+            "id": doc.id,
+            "title": data.get("title", "Untitled"),
+            "type": data.get("type", "milestone"),
+            "start_date": _parse_date(data.get("start_date")),
+            "end_date": _parse_date(data.get("end_date")),
+            "description": data.get("description", ""),
+        })
+except Exception as exc:
+    st.error(f"Calendar unavailable: {exc}")
+    events = []
+
+if not events:
+    st.info("No calendar events published yet.")
+else:
+    today = date.today()
+    upcoming = [e for e in events if (e.get("end_date") or e.get("start_date") or today) >= today]
+    upcoming = sorted(upcoming, key=lambda x: x.get("start_date") or today)
+
+    st.subheader("🔔 Upcoming")
+    for event in upcoming[:6]:
+        start = event.get("start_date")
+        end = event.get("end_date")
+        title = event.get("title")
+        event_type = event.get("type")
+
+        if start and end:
+            date_str = f"{start.strftime('%b %d')} - {end.strftime('%b %d, %Y')}"
+            days_until = (start - today).days
+        elif start:
+            date_str = start.strftime("%B %d, %Y")
+            days_until = (start - today).days
+        else:
+            date_str = "Date TBD"
+            days_until = None
+
+        icon = {
+            "holiday": "🎉",
+            "assessment": "📝",
+            "meeting": "👥",
+            "milestone": "📍",
+        }.get(event_type, "📍")
+
+        card = st.container(border=True)
+        col_icon, col_text = card.columns([1, 9])
+        with col_icon:
+            st.markdown(f"<h1 style='text-align: center;'>{icon}</h1>", unsafe_allow_html=True)
+        with col_text:
+            st.markdown(f"**{title}**")
+            if days_until is None:
+                st.caption(date_str)
+            elif days_until == 0:
+                st.caption(f"{date_str} • **Today!**")
+            elif days_until == 1:
+                st.caption(f"{date_str} • Tomorrow")
+            elif days_until < 7:
+                st.caption(f"{date_str} • In {days_until} days")
+            else:
+                st.caption(date_str)
+
+            if event.get("description"):
+                st.caption(event.get("description"))
+
+    with st.expander("📆 Full Calendar"):
+        events_sorted = sorted(events, key=lambda x: x.get("start_date") or today)
+        for event in events_sorted:
+            start = event.get("start_date")
+            end = event.get("end_date")
+            title = event.get("title")
+            event_type = event.get("type")
+
+            if start and end:
+                date_str = f"{start.strftime('%b %d')} - {end.strftime('%b %d, %Y')}"
+            elif start:
+                date_str = start.strftime("%B %d, %Y")
+            else:
+                date_str = "Date TBD"
+
+            st.write(f"• **{title}** ({event_type}) — {date_str}")

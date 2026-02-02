@@ -2,35 +2,7 @@ import streamlit as st
 import asyncio
 import json
 from pesuacademy import PESUAcademy
-from session_utils import get_cookie_manager, restore_session_from_cookie
-
-def save_session_cookie(username, password, profile):
-    """Save session to browser cookie"""
-    cookie_manager = get_cookie_manager()
-    
-    # Convert profile to dict
-    if hasattr(profile, 'model_dump'):
-        profile_dict = profile.model_dump()
-    elif hasattr(profile, 'dict'):
-        profile_dict = profile.dict()
-    elif isinstance(profile, dict):
-        profile_dict = profile
-    else:
-        profile_dict = profile.__dict__ if hasattr(profile, '__dict__') else {}
-    
-    session_data = {
-        'username': username,
-        'password': password,
-        'profile': profile_dict
-    }
-    
-    # Save to browser cookie (expires in 30 days)
-    cookie_manager.set('pesu_session', json.dumps(session_data), max_age=30*24*60*60)
-
-def clear_session_cookie():
-    """Clear session cookie"""
-    cookie_manager = get_cookie_manager()
-    cookie_manager.delete('pesu_session')
+from session_utils import save_session_cookie, restore_session_from_cookie, clear_session_cookie
 
 async def login_user(username, password):
     """Async function to login to PESU Academy"""

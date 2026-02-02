@@ -1,13 +1,18 @@
 import streamlit as st
 from session_utils import restore_session_from_cookie
+from role_utils import is_superadmin, is_cr
 
 st.set_page_config(page_title="Better PESU", page_icon=":books:", layout="wide")
 
-# Initialize session state
+# Initialize session state BEFORE restoring from cookie
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'profile' not in st.session_state:
     st.session_state.profile = None
+if 'pesu_username' not in st.session_state:
+    st.session_state.pesu_username = None
+if 'pesu_password' not in st.session_state:
+    st.session_state.pesu_password = None
 
 # Try to restore session from browser cookies
 restore_session_from_cookie()
@@ -44,13 +49,17 @@ if st.session_state.logged_in and st.session_state.profile:
         st.caption(f"**{name}**")
         st.caption(f"{section} • Sem {semester}")
 
+profile = st.session_state.profile
+
 pg = st.navigation([page for page in [
     st.Page("login.py", title="Login", icon=":material/login:") if not st.session_state.logged_in else None,
-    st.Page("dashboard.py",title="Dashboard",icon=":material/dashboard:"),
-    st.Page("courses.py", title="Courses",icon=":material/backpack:"),
-    st.Page("attendance.py", title="Attendance",icon=":material/assignment_turned_in:"),
-    st.Page("marks.py", title="Grades",icon=":material/trophy:"),
-    st.Page("settings.py",title="Settings",icon=":material/settings:")
+    st.Page("dashboard.py", title="Dashboard", icon=":material/dashboard:"),
+    st.Page("courses.py", title="Courses", icon=":material/backpack:"),
+    st.Page("attendance.py", title="Attendance", icon=":material/assignment_turned_in:"),
+    st.Page("marks.py", title="Grades", icon=":material/trophy:"),
+    st.Page("admin.py", title="Class Admin", icon=":material/admin_panel_settings:") if st.session_state.logged_in and profile and is_cr(profile) else None,
+    st.Page("superadmin.py", title="Superadmin", icon=":material/security:") if st.session_state.logged_in and profile and is_superadmin(profile) else None,
+    st.Page("settings.py", title="Settings", icon=":material/settings:")
 ] if page is not None])
 
 pg.run()
