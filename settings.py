@@ -2,12 +2,13 @@ import streamlit as st
 import base64
 from io import BytesIO
 from session_utils import get_cookie_manager, restore_session_from_cookie
+from role_utils import get_class_id, get_class_id_variants, get_user_ids, is_cr
 
 restore_session_from_cookie()
 
 # Check if user is logged in
 if not st.session_state.get('logged_in', False):
-    st.warning("⚠️ Please login first")
+    st.warning("⚠️ Yo, gotta log in first no cap 🔐")
     st.page_link("login.py", label="Go to Login", icon="🔐")
     st.stop()
 
@@ -116,10 +117,17 @@ if st.button("Logout", use_container_width=True, type="secondary",icon=":materia
     st.session_state.profile = None
     st.session_state.pesu_username = None
     st.session_state.pesu_password = None
-    st.success("Logged out successfully!")
+    st.success("Peace out bestie! See u later 👋✨")
     st.rerun()
 
 st.divider()
+
+with st.expander("Role debug", expanded=False):
+    st.caption("Use this to match your class_id key in role_config.py")
+    st.write("Class ID:", get_class_id(profile))
+    st.write("Class ID variants:", get_class_id_variants(profile))
+    st.write("User IDs:", sorted(get_user_ids(profile)))
+    st.write("CR access:", is_cr(profile))
 
 st.markdown("""
 ## About

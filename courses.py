@@ -11,7 +11,7 @@ restore_session_from_cookie()
 
 # Check if user is logged in
 if not st.session_state.get('logged_in', False):
-    st.warning("⚠️ Please login first")
+    st.warning("⚠️ Yo, gotta log in first no cap 🔐")
     st.page_link("login.py", label="Go to Login", icon="🔐")
     st.stop()
 
@@ -30,7 +30,7 @@ if material_source == "Teacher Files":
     try:
         db = get_firestore_client()
     except Exception as exc:
-        st.error(f"Teacher files are unavailable: {exc}")
+        st.error(f"Teacher files are ghosting us rn 👻 {exc}")
         st.stop()
 
     class_id = get_class_id(profile)
@@ -52,7 +52,7 @@ if material_source == "Teacher Files":
         materials.append(data)
 
     if not materials:
-        st.info("No teacher materials found for your class.")
+        st.info("No teacher materials found bestie! CRs said JK 😭")
     else:
         materials = sorted(materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
         for item in materials:
@@ -61,11 +61,11 @@ if material_source == "Teacher Files":
             with st.expander(f"{title} • {filename}"):
                 st.write(f"Course: {item.get('course_code', '')}")
                 st.write(f"Uploaded at: {item.get('uploaded_at', '')}")
-                drive_link = item.get("drive_link")
-                if drive_link:
-                    st.link_button("Open in Google Drive", drive_link, type="primary")
+                file_url = item.get("file_url")
+                if file_url:
+                    st.link_button("Open File", file_url, type="primary")
                 else:
-                    st.error("Drive link unavailable")
+                    st.error("Link is lowkey broken rn 🪦")
 
     st.stop()
 
@@ -151,13 +151,13 @@ if st.button("📥 Fetch Courses", type="primary", use_container_width=True):
         courses_dict, error = asyncio.run(fetch_courses(selected_sem))
         
         if error:
-            st.error(f"Failed to fetch courses: {error}")
+            st.error(f"Couldn't get courses ngl 😪 {error}")
         elif courses_dict:
             # Store courses in session state
             st.session_state.courses = courses_dict.get(selected_sem, [])
-            st.success(f"Fetched {len(st.session_state.courses)} courses!",icon=":material/check:")
+            st.success(f"Got {len(st.session_state.courses)} courses! Periodt 💅",icon=":material/check:")
         else:
-            st.error("No courses data returned")
+            st.error("Courses said bye 👋 No data fr")
 
 # Display courses if available
 if 'courses' in st.session_state and st.session_state.courses:
@@ -191,13 +191,13 @@ if 'courses' in st.session_state and st.session_state.courses:
                 units, error = asyncio.run(fetch_units(selected_course.id))
                 
                 if error:
-                    st.error(f"Failed to fetch units: {error}")
+                    st.error(f"Units are being sus rn 😒 {error}")
                 elif units:
                     st.session_state.current_units = units
                     st.session_state.current_course_id = selected_course.id
-                    st.success(f"Loaded {len(units)} units!",icon=":material/check:")
+                    st.success(f"Loaded {len(units)} units! Slay 🔥",icon=":material/check:")
                 else:
-                    st.info("No units found for this course")
+                    st.info("No units found bestie! This course is empty fr 💀")
         
         # Display units and materials
         if 'current_units' in st.session_state and st.session_state.current_units and st.session_state.get('current_course_id') == selected_course.id:
@@ -211,7 +211,7 @@ if 'courses' in st.session_state and st.session_state.courses:
                             topics, error = asyncio.run(fetch_topics(unit.id))
                             
                             if error:
-                                st.error(f"Failed to fetch topics: {error}")
+                                st.error(f"Topics are mid rn fr 😤 {error}")
                             else:
                                 st.session_state[f"topics_{unit.id}"] = topics
                                 st.rerun()
@@ -226,8 +226,8 @@ if 'courses' in st.session_state and st.session_state.courses:
                             # Material type selector
                             material_types = {
                                 "Lecture Notes": "1",
-                                "Assignments": "2",
-                                "Question Papers": "3",
+                                "Slides": "2",
+                                "Notes": "3",
                                 "Lab Materials": "4",
                                 "Additional Resources": "5"
                             }
@@ -240,9 +240,9 @@ if 'courses' in st.session_state and st.session_state.courses:
                                             materials, error = asyncio.run(fetch_materials(topic, mat_id))
                                             
                                             if error:
-                                                st.error(f"Error: {error}")
+                                                st.error(f"Nah that ain't it chief 💀 {error}")
                                             elif not materials:
-                                                st.info(f"No {mat_name} available")
+                                                st.info(f"No {mat_name} available oof 😭")
                                             else:
                                                 st.session_state[f"materials_{topic.id}_{mat_id}"] = materials
                                                 st.rerun()
@@ -263,4 +263,4 @@ if 'courses' in st.session_state and st.session_state.courses:
                             st.markdown("---")
 
 else:
-    st.info("👆 Click 'Fetch Courses' to load your semester courses")
+    st.info("👆 Click 'Fetch Courses' to load ur courses no cap 💯")

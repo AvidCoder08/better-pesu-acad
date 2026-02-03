@@ -7,22 +7,22 @@ from role_utils import is_superadmin
 restore_session_from_cookie()
 
 if not st.session_state.get('logged_in', False):
-    st.warning("⚠️ Please login first")
+    st.warning("⚠️ Yo, gotta log in first no cap 🔐")
     st.page_link("login.py", label="Go to Login", icon="🔐")
     st.stop()
 
 profile = st.session_state.profile
 if not is_superadmin(profile):
-    st.error("You do not have access to this page.")
+    st.error("Nah you ain't got permission for this bestie 🚫")
     st.stop()
 
 st.title("🛡️ Superadmin")
-st.caption("Manage the academic calendar")
+st.caption("U da GOAT - manage everything 🐐✨")
 
 try:
     db = get_firestore_client()
 except Exception as exc:
-    st.error(f"Firebase is not configured: {exc}")
+    st.error(f"Firebase said nope 🚫 {exc}")
     st.stop()
 
 st.subheader("Create Calendar Event")
@@ -37,7 +37,7 @@ with st.form("create_event_form", clear_on_submit=True):
     submitted = st.form_submit_button("Add Event", type="primary")
     if submitted:
         if not title.strip():
-            st.error("Title is required")
+            st.error("Gotta give this event a name bestie! 📛")
         else:
             payload = {
                 "title": title.strip(),
@@ -47,7 +47,7 @@ with st.form("create_event_form", clear_on_submit=True):
                 "description": description.strip() if description else "",
             }
             db.collection("calendar_events").add(payload)
-            st.success("Event created")
+            st.success("Event is live! Go off sis 🎉")
 
 st.divider()
 st.subheader("Existing Events")
@@ -65,7 +65,7 @@ try:
     events = sorted(events, key=sort_key)
 
     if not events:
-        st.info("No events yet.")
+        st.info("No events bestie! Add sum 📅")
     else:
         for event in events:
             title = event.get("title", "Untitled")
@@ -85,7 +85,7 @@ try:
                 with col1:
                     if st.button("Delete", key=f"delete_{event['id']}"):
                         db.collection("calendar_events").document(event["id"]).delete()
-                        st.success("Deleted")
+                        st.success("Yeeted that event 🗑️")
                         st.rerun()
                 with col2:
                     with st.form(f"edit_{event['id']}"):
@@ -109,7 +109,7 @@ try:
                                 "description": (new_desc or "").strip(),
                             }
                             db.collection("calendar_events").document(event["id"]).set(updated)
-                            st.success("Updated")
+                            st.success("Updated fr fr! 🔥")
                             st.rerun()
 except Exception as exc:
-    st.error(f"Failed to load events: {exc}")
+    st.error(f"Couldn't load events ngl 😪 {exc}")

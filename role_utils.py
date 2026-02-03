@@ -23,6 +23,11 @@ def get_user_ids(profile):
     return {i for i in ids if i}
 
 
+def _normalize_class_part(value: str) -> str:
+    value = value.strip()
+    return re.sub(r"[^A-Za-z0-9]", "", value)
+
+
 def get_class_id(profile):
     personal = _get_personal(profile)
     program = str(_get_value(personal, "program", "")).strip()
@@ -33,10 +38,25 @@ def get_class_id(profile):
     match = re.search(r"\d+", semester_raw)
     semester = match.group(0) if match else semester_raw
 
-    def clean(value):
-        return value.replace(" ", "")
+    program_clean = _normalize_class_part(program)
+    branch_clean = _normalize_class_part(branch)
+    section_clean = _normalize_class_part(section)
+    semester_clean = _normalize_class_part(semester)
 
-    return f"{clean(program)}-{clean(branch)}-Sem{clean(semester)}-{clean(section)}"
+    return f"{program_clean}-{branch_clean}-Sem{semester_clean}-{section_clean}"
+
+
+def get_class_id_variants(profile):
+    class_id = get_class_id(profile)
+    parts = class_id.split("-")
+    if len(parts) != 4:
+        return [class_id]
+
+    program, branch, sem, section = parts
+    variants = [class_id]
+    if branch:
+        variants.append(f"{program}--{sem}-{section}")
+    return variants
 
 
 def is_superadmin(profile):
@@ -45,7 +65,12 @@ def is_superadmin(profile):
 
 
 def is_cr(profile):
-    class_id = get_class_id(profile)
     user_ids = get_user_ids(profile)
-    allowed_ids = {x.lower() for x in CR_IDS_BY_CLASS.get(class_id, set())}
-    return any(uid in allowed_ids for uid in user_ids)
+    class_variants = [cid.lower() for cid in get_class_id_variants(profile)]
+
+    normalized_map = {k.lower(): v for k, v in CR_IDS_BY_CLASS.items()}
+    for class_id in class_variants:
+        allowed_ids = {x.lower() for x in normalized_map.get(class_id, set())}
+        if any(uid in allowed_ids for uid in user_ids):
+            return True
+    return False

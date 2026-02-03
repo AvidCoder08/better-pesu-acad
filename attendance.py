@@ -8,7 +8,7 @@ restore_session_from_cookie()
 
 # Check if user is logged in
 if not st.session_state.get('logged_in', False):
-    st.warning("⚠️ Please login first")
+    st.warning("⚠️ Yo, gotta log in first no cap 🔐")
     st.page_link("login.py", label="Go to Login", icon="🔐")
     st.stop()
 
@@ -81,12 +81,12 @@ if st.button("📥 Fetch Attendance", type="primary", use_container_width=True):
         courses, error = asyncio.run(fetch_attendance(selected_sem))
         
         if error:
-            st.error(error)
+            st.error(f"Yikes ngl 😬 {error}")
         else:
             st.session_state.attendance_data = courses
-            st.success("Attendance fetched successfully!")
+            st.success("Attendance is in! Check it out fam 📊")
 else:
-    st.caption("Click 'Fetch Attendance' to load your attendance data")
+    st.caption("Click 'Fetch Attendance' to see if u ate or nah 💀")
 
 # Display attendance if available
 if 'attendance_data' in st.session_state and st.session_state.attendance_data:
@@ -157,7 +157,7 @@ if 'attendance_data' in st.session_state and st.session_state.attendance_data:
             else:
                 st.error("🚨 Critical")
     else:
-        st.info("No attendance data available for this semester.")
+        st.info("No attendance data fr fr 💀")
     
     # Display detailed attendance table
     st.markdown("---")
@@ -217,14 +217,14 @@ if 'attendance_data' in st.session_state and st.session_state.attendance_data:
                 if percentage < 75:
                     if classes_needed_for_cutoff > 0:
                         if percentage >= 70:
-                            st.error(f"🚨 **DANGER:** You need to attend at least **{classes_needed_for_cutoff}** more classes to reach 75% attendance!")
+                            st.error(f"🚨 **BRAH:** U gotta show up to like **{classes_needed_for_cutoff}** more classes or ur cooked 💀")
                         else:
-                            st.error(f"🚨 **CRITICAL:** You need to attend at least **{classes_needed_for_cutoff}** more classes to reach 75% attendance!")
+                            st.error(f"🚨 **RIP:** Bro u need **{classes_needed_for_cutoff}** more to survive ngl 💀")
                     else:
-                        st.error("🚨 **CRITICAL:** You are below 75% attendance cutoff!")
+                        st.error("🚨 **SHEESH:** Ur attendance is giving FAILED vibes 🚫")
         else:
             with st.expander(f"**{course.code}** - {course.title}"):
-                st.info("No attendance data available for this course yet.")
+                st.info("No data yet bestie! Gotta attend sum classes first 🏫")
 
 else:
-    st.info(f"👆 Click 'Fetch Attendance' above to view semester {selected_sem} attendance data.")
+    st.info(f"👆 Click that button to see ur attendance fr fr 📈")

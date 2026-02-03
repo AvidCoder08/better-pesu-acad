@@ -55,6 +55,7 @@ pg = st.navigation([page for page in [
     st.Page("login.py", title="Login", icon=":material/login:") if not st.session_state.logged_in else None,
     st.Page("dashboard.py", title="Dashboard", icon=":material/dashboard:"),
     st.Page("courses.py", title="Courses", icon=":material/backpack:"),
+    st.Page("timetable.py", title="Schedule", icon=":material/schedule:"),
     st.Page("attendance.py", title="Attendance", icon=":material/assignment_turned_in:"),
     st.Page("marks.py", title="Grades", icon=":material/trophy:"),
     st.Page("admin.py", title="Class Admin", icon=":material/admin_panel_settings:") if st.session_state.logged_in and profile and is_cr(profile) else None,

@@ -9,7 +9,7 @@ restore_session_from_cookie()
 
 # Check if user is logged in
 if not st.session_state.get('logged_in', False):
-    st.warning("⚠️ Please login first")
+    st.warning("⚠️ Yo, gotta log in first no cap 🔐")
     st.page_link("login.py", label="Go to Login", icon="🔐")
     st.stop()
 
@@ -63,37 +63,17 @@ class ToDoList:
     def finish_task(self, task):
         if task in self.tasks:
             self.tasks.remove(task)
-            st.success(f"✅'{task}' was completed!")
+            st.success(f"✅ Yessir! '{task}' is done fr fr 🔥")
 
     def get_tasks(self):
         return self.tasks
 
 todo_list = ToDoList(st.session_state.tasks)
 
-with col1:
-    date_c = st.container(border=True,horizontal_alignment="center",vertical_alignment="center",horizontal=True)
-    todays_date = dt.date.today().strftime("%d-%m-%Y")
-    date_c.header(todays_date)
-
-with col2:
-    task_c = st.container(border=True)
-    task_c.header("Tasks")
-    new_task = task_c.text_input(label="Enter Tasks to complete")
-    if task_c.button("Add Task"):
-        if new_task:
-            todo_list.add_task(new_task)
-            task_c.success("Task Added")
-        else:
-            task_c.error("Please enter task")
-    tasks = todo_list.get_tasks()
-    for task in tasks:
-        if task_c.checkbox(label=task):
-            todo_list.finish_task(task)
-
 # Academic Calendar Section
 st.divider()
 st.header("📅 Academic Calendar")
-st.caption("Managed by superadmin")
+st.caption("Managed by the GOAT (superadmin) 🐐")
 
 if is_superadmin(profile):
     st.page_link("superadmin.py", label="Manage Calendar", icon="🛡️")
@@ -118,11 +98,11 @@ try:
             "description": data.get("description", ""),
         })
 except Exception as exc:
-    st.error(f"Calendar unavailable: {exc}")
+    st.error(f"Calendar is down fr 💔 {exc}")
     events = []
 
 if not events:
-    st.info("No calendar events published yet.")
+    st.info("No events yet bestie! Dead asf 💀")
 else:
     today = date.today()
     upcoming = [e for e in events if (e.get("end_date") or e.get("start_date") or today) >= today]

@@ -55,3 +55,20 @@ def generate_signed_url(storage_path, expires_minutes=60):
     bucket = get_storage_bucket()
     blob = bucket.blob(storage_path)
     return blob.generate_signed_url(expiration=timedelta(minutes=expires_minutes))
+
+
+def upload_to_storage(file_bytes, storage_path, content_type="application/octet-stream"):
+    """Upload file bytes to Firebase Storage and return public URL."""
+    bucket = get_storage_bucket()
+    blob = bucket.blob(storage_path)
+    blob.upload_from_string(file_bytes, content_type=content_type)
+    blob.make_public()
+    return blob.public_url
+
+
+def delete_from_storage(storage_path):
+    """Delete a file from Firebase Storage."""
+    bucket = get_storage_bucket()
+    blob = bucket.blob(storage_path)
+    if blob.exists():
+        blob.delete()

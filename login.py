@@ -21,7 +21,7 @@ def main():
 
     # Check if user is already logged in
     if 'logged_in' in st.session_state and st.session_state.logged_in:
-        st.success("You are already logged in!")
+        st.success("Already in bestie! U good 🔐✨")
         
         # Display user info
         if isinstance(st.session_state.profile, dict):
@@ -67,14 +67,14 @@ def main():
             
             if submit:
                 if not username or not password:
-                    st.error("Please enter both username and password")
+                    st.error("Gotta enter username AND password bestie 🔑")
                 else:
                     with st.spinner("Logging in..."):
                         # Run async login
                         profile, error = asyncio.run(login_user(username, password))
                         
                         if error:
-                            st.error(f"Login failed: {error}")
+                            st.error(f"Login said nope 🚫 {error}")
                         else:
                             st.session_state.logged_in = True
                             st.session_state.profile = profile
@@ -84,7 +84,7 @@ def main():
                             # Save session to browser cookie
                             save_session_cookie(username, password, profile)
                             
-                            st.success("Login successful!",icon=":material/check:")
+                            st.success("U in now! Let's gooo 🔥",icon=":material/check:")
                             st.rerun()
 
 if __name__ == "__main__":

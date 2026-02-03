@@ -8,7 +8,7 @@ restore_session_from_cookie()
 
 # Check if user is logged in
 if not st.session_state.get('logged_in', False):
-    st.warning("⚠️ Please login first")
+    st.warning("⚠️ Yo, gotta log in first no cap 🔐")
     st.page_link("login.py", label="Go to Login", icon="🔐")
     st.stop()
 
@@ -83,11 +83,11 @@ if st.button("Fetch Results", type="primary", use_container_width=True,icon=":ma
         results, error = asyncio.run(fetch_results(selected_sem))
         
         if error:
-            st.error(error)
+            st.error(f"Couldn't get ur grades ngl 😅 {error}")
             st.warning("Tips:\n- Make sure results are published as **Final** (not just provisional)\n- Try a different semester\n- Results might still be processing",icon=":material/lightbulb_2:")
         else:
             st.session_state.results = results
-            st.success("Results fetched successfully!")
+            st.success("Results are in! Let's see how u did 👀")
 else:
     st.caption("Note: The library currently supports final published results. If you see provisional results on PESU Academy, they may not be available through this API yet.")
 
@@ -185,4 +185,4 @@ if 'results' in st.session_state and st.session_state.results:
                     hide_index=True
                 )
 else:
-    st.info(f"👆 Click the 'Fetch Results' button above to view semester {selected_sem} grades and marks.")
+    st.info(f"👆 Click 'Fetch Results' to peek ur grades fr 📄")

@@ -12,6 +12,17 @@ from io import BytesIO
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 
+def _get_shared_drive_id():
+    if "google_drive_shared_drive_id" in st.secrets:
+        return str(st.secrets["google_drive_shared_drive_id"]).strip()
+
+    shared_drive_id = os.getenv("GOOGLE_DRIVE_SHARED_DRIVE_ID")
+    if shared_drive_id:
+        return shared_drive_id.strip()
+
+    return ""
+
+
 def _load_credentials():
     if "google_drive_service_account" in st.secrets:
         creds_dict = dict(st.secrets["google_drive_service_account"])
@@ -39,11 +50,28 @@ def get_drive_service():
 def create_folder_if_not_exists(service, folder_name, parent_id=None):
     """Create a folder in Google Drive if it doesn't exist, return folder ID."""
     try:
+        shared_drive_id = _get_shared_drive_id()
         query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
         if parent_id:
             query += f" and '{parent_id}' in parents"
-        
-        results = service.files().list(q=query, spaces="drive", fields="files(id, name)", pageSize=1).execute()
+
+        list_kwargs = {
+            "q": query,
+            "spaces": "drive",
+            "fields": "files(id, name)",
+            "pageSize": 1,
+        }
+        if shared_drive_id:
+            list_kwargs.update(
+                {
+                    "corpora": "drive",
+                    "driveId": shared_drive_id,
+                    "includeItemsFromAllDrives": True,
+                    "supportsAllDrives": True,
+                }
+            )
+
+        results = service.files().list(**list_kwargs).execute()
         files = results.get("files", [])
         
         if files:
@@ -55,8 +83,12 @@ def create_folder_if_not_exists(service, folder_name, parent_id=None):
         }
         if parent_id:
             file_metadata["parents"] = [parent_id]
-        
-        folder = service.files().create(body=file_metadata, fields="id").execute()
+
+        create_kwargs = {"body": file_metadata, "fields": "id"}
+        if shared_drive_id:
+            create_kwargs["supportsAllDrives"] = True
+
+        folder = service.files().create(**create_kwargs).execute()
         return folder.get("id")
     except HttpError as error:
         raise RuntimeError(f"Google Drive error: {error}")
@@ -65,6 +97,7 @@ def create_folder_if_not_exists(service, folder_name, parent_id=None):
 def upload_file_correct(service, file_bytes, filename, parent_folder_id):
     """Upload file bytes to Google Drive."""
     try:
+        shared_drive_id = _get_shared_drive_id()
         file_metadata = {
             "name": filename,
             "parents": [parent_folder_id],
@@ -73,11 +106,15 @@ def upload_file_correct(service, file_bytes, filename, parent_folder_id):
         stream = BytesIO(file_bytes)
         media = MediaIoBaseUpload(stream, mimetype="application/octet-stream", resumable=False)
         
-        file_obj = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id, webViewLink"
-        ).execute()
+        create_kwargs = {
+            "body": file_metadata,
+            "media_body": media,
+            "fields": "id, webViewLink",
+        }
+        if shared_drive_id:
+            create_kwargs["supportsAllDrives"] = True
+
+        file_obj = service.files().create(**create_kwargs).execute()
         
         return file_obj.get("id"), file_obj.get("webViewLink")
     except HttpError as error:
@@ -87,7 +124,11 @@ def upload_file_correct(service, file_bytes, filename, parent_folder_id):
 def delete_file(service, file_id):
     """Delete a file from Google Drive."""
     try:
-        service.files().delete(fileId=file_id).execute()
+        shared_drive_id = _get_shared_drive_id()
+        delete_kwargs = {"fileId": file_id}
+        if shared_drive_id:
+            delete_kwargs["supportsAllDrives"] = True
+        service.files().delete(**delete_kwargs).execute()
     except HttpError as error:
         raise RuntimeError(f"Delete failed: {error}")
 
@@ -95,12 +136,24 @@ def delete_file(service, file_id):
 def list_files_in_folder(service, folder_id):
     """List all files in a folder."""
     try:
-        results = service.files().list(
-            q=f"'{folder_id}' in parents and trashed=false",
-            spaces="drive",
-            fields="files(id, name, mimeType, createdTime)",
-            pageSize=100
-        ).execute()
+        shared_drive_id = _get_shared_drive_id()
+        list_kwargs = {
+            "q": f"'{folder_id}' in parents and trashed=false",
+            "spaces": "drive",
+            "fields": "files(id, name, mimeType, createdTime)",
+            "pageSize": 100,
+        }
+        if shared_drive_id:
+            list_kwargs.update(
+                {
+                    "corpora": "drive",
+                    "driveId": shared_drive_id,
+                    "includeItemsFromAllDrives": True,
+                    "supportsAllDrives": True,
+                }
+            )
+
+        results = service.files().list(**list_kwargs).execute()
         return results.get("files", [])
     except HttpError as error:
         raise RuntimeError(f"List failed: {error}")
