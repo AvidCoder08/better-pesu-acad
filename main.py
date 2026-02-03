@@ -1,6 +1,9 @@
 import streamlit as st
+from dotenv import load_dotenv
 from session_utils import restore_session_from_cookie
 from role_utils import is_superadmin, is_cr
+
+load_dotenv()
 
 st.set_page_config(page_title="Better PESU", page_icon=":books:", layout="wide")
 

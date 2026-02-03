@@ -4,6 +4,9 @@ import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from datetime import timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def _load_credentials():

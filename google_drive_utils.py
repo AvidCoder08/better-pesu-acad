@@ -7,6 +7,9 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
 from io import BytesIO
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]

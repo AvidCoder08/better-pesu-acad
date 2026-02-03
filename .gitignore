@@ -1,2 +1,8 @@
 .session_data.json
 pesuacademy-dev/
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+firebase-credentials.json
+google-drive-credentials.json
