@@ -11,7 +11,7 @@ if not st.session_state.get('logged_in', False):
     st.warning("⚠️ Yo, gotta log in first no cap 🔐")
     st.page_link("login.py", label="Go to Login", icon="🔐")
     st.stop()
-
+st.title("---Under Construction---")
 st.title("📊 Grades & Results")
 
 # Get profile to determine current semester

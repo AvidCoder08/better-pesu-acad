@@ -48,6 +48,7 @@ with st.form("create_event_form", clear_on_submit=True):
             }
             db.collection("calendar_events").add(payload)
             st.success("Event is live! Go off sis 🎉")
+            st.rerun()
 
 st.divider()
 st.subheader("Existing Events")

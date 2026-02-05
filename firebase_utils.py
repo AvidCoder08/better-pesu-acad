@@ -1,33 +1,43 @@
 import os
 import json
-import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from datetime import timedelta
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv()
 
 
 def _load_credentials():
-    if "firebase_service_account" in st.secrets:
-        return credentials.Certificate(dict(st.secrets["firebase_service_account"]))
+    # Try Streamlit secrets first (for production/deployed apps)
+    try:
+        service_account_path = st.secrets.get("firebase_service_account")
+        if service_account_path and os.path.exists(service_account_path):
+            return credentials.Certificate(service_account_path)
+    except (AttributeError, KeyError):
+        pass
 
+    # Fallback to environment variables (file path is preferred)
     service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if service_account_path and os.path.exists(service_account_path):
         return credentials.Certificate(service_account_path)
 
+    # Last resort: try JSON from environment (not recommended due to escape sequence issues)
     service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
     if service_account_json:
-        return credentials.Certificate(json.loads(service_account_json))
+        try:
+            return credentials.Certificate(json.loads(service_account_json))
+        except (json.JSONDecodeError, ValueError) as e:
+            raise RuntimeError(f"Invalid Firebase JSON credentials: {e}")
 
     raise RuntimeError(
-        "Firebase credentials not found. Set st.secrets['firebase_service_account'] or FIREBASE_SERVICE_ACCOUNT/GOOGLE_APPLICATION_CREDENTIALS."
+        "Firebase credentials not found. Set FIREBASE_SERVICE_ACCOUNT env var or firebase_service_account in secrets.toml"
     )
 
 
 def _get_bucket_name():
-    return st.secrets.get("firebase_storage_bucket") if "firebase_storage_bucket" in st.secrets else os.getenv("FIREBASE_STORAGE_BUCKET")
+    return os.getenv("FIREBASE_STORAGE_BUCKET")
 
 
 def get_firebase_app():

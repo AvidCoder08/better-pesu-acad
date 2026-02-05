@@ -1,13 +1,12 @@
 import os
-import streamlit as st
-from google.auth.transport.requests import Request
+import json
 from google.oauth2.service_account import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
 from io import BytesIO
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv()
 
@@ -16,9 +15,15 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 
 def _get_shared_drive_id():
-    if "google_drive_shared_drive_id" in st.secrets:
-        return str(st.secrets["google_drive_shared_drive_id"]).strip()
+    # Try Streamlit secrets first
+    try:
+        shared_drive_id = st.secrets.get("google_drive_shared_drive_id")
+        if shared_drive_id:
+            return shared_drive_id.strip()
+    except (AttributeError, KeyError):
+        pass
 
+    # Fallback to environment variables
     shared_drive_id = os.getenv("GOOGLE_DRIVE_SHARED_DRIVE_ID")
     if shared_drive_id:
         return shared_drive_id.strip()
@@ -27,16 +32,33 @@ def _get_shared_drive_id():
 
 
 def _load_credentials():
-    if "google_drive_service_account" in st.secrets:
-        creds_dict = dict(st.secrets["google_drive_service_account"])
-        return Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    # Try Streamlit secrets first
+    try:
+        service_account_path = st.secrets.get("google_drive_service_account")
+        if service_account_path and os.path.exists(service_account_path):
+            return Credentials.from_service_account_file(service_account_path, scopes=SCOPES)
+        
+        service_account_json = st.secrets.get("google_drive_service_account_json")
+        if service_account_json:
+            return Credentials.from_service_account_info(
+                json.loads(service_account_json), scopes=SCOPES
+            )
+    except (AttributeError, KeyError):
+        pass
 
+    # Fallback to environment variables
     service_account_path = os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT")
     if service_account_path and os.path.exists(service_account_path):
         return Credentials.from_service_account_file(service_account_path, scopes=SCOPES)
 
+    service_account_json = os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")
+    if service_account_json:
+        return Credentials.from_service_account_info(
+            json.loads(service_account_json), scopes=SCOPES
+        )
+
     raise RuntimeError(
-        "Google Drive credentials not found. Set st.secrets['google_drive_service_account'] or GOOGLE_DRIVE_SERVICE_ACCOUNT."
+        "Google Drive credentials not found. Add them to .streamlit/secrets.toml or set env vars."
     )
 
 

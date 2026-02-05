@@ -2,7 +2,8 @@ import streamlit as st
 from datetime import datetime
 from session_utils import restore_session_from_cookie
 from role_utils import is_cr, get_class_id, get_user_ids
-from firebase_utils import get_firestore_client, upload_to_storage, delete_from_storage
+from firebase_utils import get_firestore_client
+from github_utils import upload_to_github, delete_from_github
 
 restore_session_from_cookie()
 
@@ -47,7 +48,8 @@ with st.form("upload_teacher_materials"):
             try:
                 for uploaded in files:
                     storage_path = f"teacher_materials/{class_id}/{course_code.strip()}/{uploaded.name}"
-                    public_url = upload_to_storage(uploaded.getvalue(), storage_path, uploaded.type or "application/octet-stream")
+                    public_url = upload_to_github(uploaded.getvalue(), storage_path, 
+                                                   commit_message=f"Upload {course_code.strip()}: {uploaded.name}")
                     
                     doc = {
                         "class_id": class_id,
@@ -63,8 +65,11 @@ with st.form("upload_teacher_materials"):
                     }
                     db.collection("teacher_materials").add(doc)
                 st.success("Uploaded fr! Your class eats now 🔥")
+                st.rerun()
             except Exception as exc:
+                import traceback
                 st.error(f"Upload ghosted us ngl 👻 {exc}")
+                st.code(traceback.format_exc())
 
 st.divider()
 st.subheader("Existing Class Materials")
@@ -90,13 +95,16 @@ else:
                 st.link_button("Open File", file_url, type="primary")
             else:
                 st.error("File link unavailable")
-            if st.button("Delete", key=f"delete_{item['id']}"):
-                try:
-                    storage_path = item.get("storage_path")
-                    if storage_path:
-                        delete_from_storage(storage_path)
-                except Exception:
-                    pass
-                db.collection("teacher_materials").document(item["id"]).delete()
-                st.success("Yeeted that file 🗑️")
-                st.rerun()
+            
+            col_delete, col_space = st.columns([1, 3])
+            with col_delete:
+                if st.button("Delete", key=f"delete_{item['id']}", use_container_width=True):
+                    try:
+                        storage_path = item.get("storage_path")
+                        if storage_path:
+                            delete_from_github(storage_path)
+                        db.collection("teacher_materials").document(item["id"]).delete()
+                        st.success("Yeeted that file 🗑️")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Delete failed: {e}")

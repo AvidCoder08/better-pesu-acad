@@ -84,7 +84,33 @@ with col_details:
         st.markdown("")
         
         st.markdown("**Section**")
-        st.markdown(f"{get_value('section')}")
+        section = get_value('section')
+        st.markdown(f"{section}")
+        
+        # Show cycle based on first letter of section
+        if isinstance(personal, dict):
+            sem = personal.get('semester', '1')
+        else:
+            sem = getattr(personal, 'semester', '1')
+        
+        # Parse semester
+        try:
+            if isinstance(sem, str):
+                current_sem = int(sem.split('-')[-1]) if '-' in sem else int(sem)
+            else:
+                current_sem = int(sem)
+        except:
+            current_sem = 1
+        
+        # Show cycle for 1st and 2nd semester
+        if current_sem in [1, 2] and section and len(str(section)) > 0:
+            first_letter = str(section)[8].upper()
+            if first_letter == 'C':
+                st.markdown("**Cycle**")
+                st.markdown("Chemistry")
+            elif first_letter == 'P':
+                st.markdown("**Cycle**")
+                st.markdown("Physics")
     
     with detail_col3:
         st.markdown("**Program**")
@@ -122,12 +148,12 @@ if st.button("Logout", use_container_width=True, type="secondary",icon=":materia
 
 st.divider()
 
-with st.expander("Role debug", expanded=False):
-    st.caption("Use this to match your class_id key in role_config.py")
-    st.write("Class ID:", get_class_id(profile))
-    st.write("Class ID variants:", get_class_id_variants(profile))
-    st.write("User IDs:", sorted(get_user_ids(profile)))
-    st.write("CR access:", is_cr(profile))
+# with st.expander("Role debug", expanded=False):
+#     st.caption("Use this to match your class_id key in role_config.py")
+#     st.write("Class ID:", get_class_id(profile))
+#     st.write("Class ID variants:", get_class_id_variants(profile))
+#     st.write("User IDs:", sorted(get_user_ids(profile)))
+#     st.write("CR access:", is_cr(profile))
 
 st.markdown("""
 ## About
