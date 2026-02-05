@@ -33,10 +33,11 @@ except:
 
 # Semester selector
 st.subheader("Select Semester")
+sem_options = list(range(1, current_sem + 1))
 selected_sem = st.selectbox(
     "Choose a semester to view results:",
-    options=list(range(1, current_sem + 1)),
-    index=None,
+    options=sem_options,
+    index=len(sem_options) - 1 if sem_options else 0,
     key="semester_selector",
 )
 
@@ -61,8 +62,14 @@ async def fetch_results(semester):
         except AttributeError as ae:
             await pesu.close()
             return None, f"Results page structure not found. This might mean:\n- No results available for semester {semester} yet\n- Results are still being processed\n- Please try again later or contact support"
+        except IndexError as ie:
+            await pesu.close()
+            return None, f"Results not available yet for semester {semester}. This usually means:\n- Results haven't been published as **Final** yet (check PESU Academy)\n- Results are still provisional/in-progress\n- The semester doesn't have published results yet"
         except Exception as parse_error:
             await pesu.close()
+            import traceback
+            st.error("**Debug Info:**")
+            st.code(traceback.format_exc())
             return None, f"Error parsing results: {str(parse_error)}"
         
         await pesu.close()
@@ -77,19 +84,41 @@ async def fetch_results(semester):
         traceback.print_exc()
         return None, f"Error fetching results: {error_msg}"
 
-# Fetch button or auto-fetch
-if st.button("Fetch Results", type="primary", use_container_width=True,icon=":material/azm:"):
-    with st.spinner(f"Fetching semester {selected_sem} results..."):
+# Auto-load results on first visit or semester change
+if 'marks_initialized' not in st.session_state:
+    st.session_state.marks_initialized = True
+    st.session_state.last_marks_sem = selected_sem
+    with st.spinner(f"Loading semester {selected_sem} results..."):
         results, error = asyncio.run(fetch_results(selected_sem))
-        
         if error:
             st.error(f"Couldn't get ur grades ngl 😅 {error}")
             st.warning("Tips:\n- Make sure results are published as **Final** (not just provisional)\n- Try a different semester\n- Results might still be processing",icon=":material/lightbulb_2:")
         else:
             st.session_state.results = results
-            st.success("Results are in! Let's see how u did 👀")
-else:
-    st.caption("Note: The library currently supports final published results. If you see provisional results on PESU Academy, they may not be available through this API yet.")
+            st.success("Results loaded! Let's see how u did 👀")
+elif st.session_state.get('last_marks_sem') != selected_sem:
+    st.session_state.last_marks_sem = selected_sem
+    with st.spinner(f"Loading semester {selected_sem} results..."):
+        results, error = asyncio.run(fetch_results(selected_sem))
+        if error:
+            st.error(f"Couldn't get ur grades ngl 😅 {error}")
+            st.warning("Tips:\n- Make sure results are published as **Final** (not just provisional)\n- Try a different semester\n- Results might still be processing",icon=":material/lightbulb_2:")
+        else:
+            st.session_state.results = results
+            st.success("Results loaded! Let's see how u did 👀")
+
+# Manual refresh button
+if st.button("🔄 Refresh Results", use_container_width=True):
+    with st.spinner(f"Refreshing semester {selected_sem} results..."):
+        results, error = asyncio.run(fetch_results(selected_sem))
+        if error:
+            st.error(f"Couldn't get ur grades ngl 😅 {error}")
+            st.warning("Tips:\n- Make sure results are published as **Final** (not just provisional)\n- Try a different semester\n- Results might still be processing",icon=":material/lightbulb_2:")
+        else:
+            st.session_state.results = results
+            st.success("Results refreshed! 👀")
+
+st.caption("Note: The library currently supports final published results. If you see provisional results on PESU Academy, they may not be available through this API yet.")
 
 # Display results if available
 if 'results' in st.session_state and st.session_state.results:

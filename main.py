@@ -61,6 +61,7 @@ pg = st.navigation([page for page in [
     st.Page("timetable.py", title="Schedule", icon=":material/schedule:"),
     st.Page("attendance.py", title="Attendance", icon=":material/assignment_turned_in:"),
     st.Page("marks.py", title="Grades", icon=":material/trophy:"),
+    st.Page("exam_seating.py", title="Exam Seating", icon=":material/place:"),
     st.Page("admin.py", title="Class Admin", icon=":material/admin_panel_settings:") if st.session_state.logged_in and profile and is_cr(profile) else None,
     st.Page("superadmin.py", title="Superadmin", icon=":material/security:") if st.session_state.logged_in and profile and is_superadmin(profile) else None,
     st.Page("settings.py", title="Settings", icon=":material/settings:")

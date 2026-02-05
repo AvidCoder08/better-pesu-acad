@@ -75,18 +75,36 @@ async def fetch_attendance(semester):
         traceback.print_exc()
         return None, f"Error fetching attendance: {error_msg}"
 
-# Fetch button
-if st.button("📥 Fetch Attendance", type="primary", use_container_width=True):
-    with st.spinner(f"Fetching semester {selected_sem} attendance..."):
+# Auto-load attendance on first visit or semester change
+if 'attendance_initialized' not in st.session_state:
+    st.session_state.attendance_initialized = True
+    st.session_state.last_attendance_sem = selected_sem
+    with st.spinner(f"Loading semester {selected_sem} attendance..."):
         courses, error = asyncio.run(fetch_attendance(selected_sem))
-        
         if error:
             st.error(f"Yikes ngl 😬 {error}")
         else:
             st.session_state.attendance_data = courses
-            st.success("Attendance is in! Check it out fam 📊")
-else:
-    st.caption("Click 'Fetch Attendance' to see if u ate or nah 💀")
+            st.success("Attendance loaded! Check it out fam 📊")
+elif st.session_state.get('last_attendance_sem') != selected_sem:
+    st.session_state.last_attendance_sem = selected_sem
+    with st.spinner(f"Loading semester {selected_sem} attendance..."):
+        courses, error = asyncio.run(fetch_attendance(selected_sem))
+        if error:
+            st.error(f"Yikes ngl 😬 {error}")
+        else:
+            st.session_state.attendance_data = courses
+            st.success("Attendance loaded! Check it out fam 📊")
+
+# Manual refresh button
+if st.button("🔄 Refresh Attendance", use_container_width=True):
+    with st.spinner(f"Refreshing semester {selected_sem} attendance..."):
+        courses, error = asyncio.run(fetch_attendance(selected_sem))
+        if error:
+            st.error(f"Yikes ngl 😬 {error}")
+        else:
+            st.session_state.attendance_data = courses
+            st.success("Attendance refreshed! 📊")
 
 # Display attendance if available
 if 'attendance_data' in st.session_state and st.session_state.attendance_data:
