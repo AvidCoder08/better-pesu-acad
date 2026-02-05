@@ -6,3 +6,4 @@ pesuacademy-dev/
 .streamlit/secrets.toml
 firebase-credentials.json
 google-drive-credentials.json
+.env
