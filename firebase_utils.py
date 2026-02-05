@@ -12,18 +12,19 @@ load_dotenv()
 def _load_credentials():
     # Try Streamlit secrets first (for production/deployed apps)
     try:
+        # First try JSON string in secrets (preferred for Streamlit Cloud)
+        service_account_json = st.secrets.get("firebase_service_account_json")
+        if service_account_json:
+            return credentials.Certificate(json.loads(service_account_json))
+
+        # Fallback to file path in secrets (for local .streamlit/secrets.toml)
         service_account_path = st.secrets.get("firebase_service_account")
         if service_account_path and os.path.exists(service_account_path):
             return credentials.Certificate(service_account_path)
     except (AttributeError, KeyError):
         pass
 
-    # Fallback to environment variables (file path is preferred)
-    service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if service_account_path and os.path.exists(service_account_path):
-        return credentials.Certificate(service_account_path)
-
-    # Last resort: try JSON from environment (not recommended due to escape sequence issues)
+    # Fallback to environment variables
     service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
     if service_account_json:
         try:
@@ -31,12 +32,26 @@ def _load_credentials():
         except (json.JSONDecodeError, ValueError) as e:
             raise RuntimeError(f"Invalid Firebase JSON credentials: {e}")
 
+    # File path from environment
+    service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if service_account_path and os.path.exists(service_account_path):
+        return credentials.Certificate(service_account_path)
+
     raise RuntimeError(
-        "Firebase credentials not found. Set FIREBASE_SERVICE_ACCOUNT env var or firebase_service_account in secrets.toml"
+        "Firebase credentials not found. Set firebase_service_account_json in Streamlit secrets or FIREBASE_SERVICE_ACCOUNT_JSON env var"
     )
 
 
 def _get_bucket_name():
+    # Try Streamlit secrets first
+    try:
+        bucket = st.secrets.get("firebase_storage_bucket")
+        if bucket:
+            return bucket
+    except (AttributeError, KeyError):
+        pass
+
+    # Fallback to environment variable
     return os.getenv("FIREBASE_STORAGE_BUCKET")
 
 
