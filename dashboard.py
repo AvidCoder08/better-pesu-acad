@@ -2,7 +2,7 @@ import streamlit as st
 import datetime as dt
 from datetime import date
 from session_utils import restore_session_from_cookie
-from firebase_utils import get_firestore_client
+from calendar_utils import get_calendar_events
 from role_utils import is_superadmin
 
 restore_session_from_cookie()
@@ -86,21 +86,20 @@ def _parse_date(value):
 
 events = []
 try:
-    db = get_firestore_client()
-    for doc in db.collection("calendar_events").stream():
-        data = doc.to_dict() or {}
+    raw_events = get_calendar_events()
+    for event in raw_events:
         events.append({
-            "id": doc.id,
-            "title": data.get("title", "Untitled"),
-            "type": data.get("type", "milestone"),
-            "start_date": _parse_date(data.get("start_date")),
-            "end_date": _parse_date(data.get("end_date")),
-            "description": data.get("description", ""),
+            "id": event.get("id"),
+            "title": event.get("title", "Untitled"),
+            "type": event.get("type", "milestone"),
+            "start_date": _parse_date(event.get("start_date")),
+            "end_date": _parse_date(event.get("end_date")),
+            "description": event.get("description", ""),
         })
 except RuntimeError as exc:
-    # Firebase credentials not configured (local development)
-    if "Firebase credentials not found" in str(exc):
-        st.info("📅 Calendar feature is available in production only")
+    # GitHub credentials not configured
+    if "GITHUB_TOKEN not set" in str(exc):
+        st.info("📅 Calendar feature requires GitHub configuration")
     else:
         st.error(f"Calendar is down fr 💔 {exc}")
     events = []
