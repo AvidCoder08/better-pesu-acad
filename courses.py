@@ -5,7 +5,7 @@ import json
 import os
 from session_utils import restore_session_from_cookie
 from role_utils import get_class_id, is_cr
-from firebase_utils import get_firestore_client
+from materials_utils import get_materials_by_class
 
 restore_session_from_cookie()
 
@@ -27,12 +27,6 @@ material_source = st.radio(
 )
 
 if material_source == "Teacher Files":
-    try:
-        db = get_firestore_client()
-    except Exception as exc:
-        st.error(f"Teacher files are ghosting us rn 👻 {exc}")
-        st.stop()
-
     class_id = get_class_id(profile)
     st.subheader("Teacher Files")
     st.caption(f"Class: {class_id}")
@@ -41,15 +35,13 @@ if material_source == "Teacher Files":
         st.page_link("admin.py", label="Go to Class Admin", icon="🛡️")
 
     course_filter = st.text_input("Filter by course code (optional)", placeholder="UE22CS202")
-    materials = []
-    query = db.collection("teacher_materials").where("class_id", "==", class_id)
+    
+    # Get all materials for this class
+    materials = get_materials_by_class(class_id)
+    
+    # Filter by course code if provided
     if course_filter.strip():
-        query = query.where("course_code", "==", course_filter.strip())
-
-    for doc in query.stream():
-        data = doc.to_dict() or {}
-        data["id"] = doc.id
-        materials.append(data)
+        materials = [m for m in materials if m.get("course_code") == course_filter.strip()]
 
     if not materials:
         st.info("No teacher materials found bestie! CRs said JK 😭")
