@@ -1,5 +1,4 @@
 .session_data.json
-pesuacademy-dev/
 .env
 .env.*
 !.env.example

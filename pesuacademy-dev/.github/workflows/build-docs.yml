@@ -1,0 +1,44 @@
+name: Build and Deploy Documentation
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies for lxml
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libxslt1-dev zlib1g-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[docs]
+
+      - name: Build HTML docs
+        run: make -C docs html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/_build/html
+          publish_branch: gh-pages
+          # Deploy main branch docs to root, dev branch docs under /dev
+          destination_dir: ${{ github.ref == 'refs/heads/main' && '' || 'dev' }}

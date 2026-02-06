@@ -1,0 +1,15 @@
+.idea/
+.vscode/
+__pycache__/
+.pytest_cache/
+*.log
+.venv
+.coverage
+.env
+.uv/
+.ruff_cache/
+.DS_store
+test*.*
+docs/modules.rst
+docs/pesuacademy*.rst
+docs/_build/

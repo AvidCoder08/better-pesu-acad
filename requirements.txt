@@ -1,7 +1,7 @@
 streamlit[pdf]
 toml
 st-theme
-pesuacademy
+-e ./pesuacademy-dev
 lxml
 extra-streamlit-components
 python-dotenv
