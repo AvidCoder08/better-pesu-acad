@@ -2,8 +2,8 @@ import streamlit as st
 from datetime import datetime
 from session_utils import restore_session_from_cookie
 from role_utils import is_cr, get_class_id, get_user_ids
-from firebase_utils import get_firestore_client
 from github_utils import upload_to_github, delete_from_github
+from materials_utils import add_material, get_materials_by_class, delete_material
 
 restore_session_from_cookie()
 
@@ -19,12 +19,6 @@ if not is_cr(profile):
 
 st.title("👩‍💼 Class Admin")
 st.caption("Upload teacher files so ur class eats 📚✨")
-
-try:
-    db = get_firestore_client()
-except Exception as exc:
-    st.error(f"Backend is acting up ngl 💔 {exc}")
-    st.stop()
 
 class_id = get_class_id(profile)
 user_ids = get_user_ids(profile)
@@ -50,20 +44,18 @@ with st.form("upload_teacher_materials"):
                     storage_path = f"teacher_materials/{class_id}/{course_code.strip()}/{uploaded.name}"
                     public_url = upload_to_github(uploaded.getvalue(), storage_path, 
                                                    commit_message=f"Upload {course_code.strip()}: {uploaded.name}")
-                    
-                    doc = {
-                        "class_id": class_id,
-                        "course_code": course_code.strip(),
-                        "course_title": course_title.strip(),
-                        "filename": uploaded.name,
-                        "storage_path": storage_path,
-                        "file_url": public_url,
-                        "content_type": uploaded.type,
-                        "size": uploaded.size,
-                        "uploaded_by": next(iter(user_ids)) if user_ids else "unknown",
-                        "uploaded_at": datetime.utcnow().isoformat(),
-                    }
-                    db.collection("teacher_materials").add(doc)
+
+                    add_material(
+                        class_id=class_id,
+                        course_code=course_code.strip(),
+                        course_title=course_title.strip(),
+                        filename=uploaded.name,
+                        storage_path=storage_path,
+                        file_url=public_url,
+                        content_type=uploaded.type,
+                        size=uploaded.size,
+                        uploaded_by=next(iter(user_ids)) if user_ids else "unknown"
+                    )
                 st.success("Uploaded fr! Your class eats now 🔥")
                 st.rerun()
             except Exception as exc:
@@ -74,11 +66,7 @@ with st.form("upload_teacher_materials"):
 st.divider()
 st.subheader("Existing Class Materials")
 
-materials = []
-for doc in db.collection("teacher_materials").where("class_id", "==", class_id).stream():
-    data = doc.to_dict() or {}
-    data["id"] = doc.id
-    materials.append(data)
+materials = get_materials_by_class(class_id)
 
 if not materials:
     st.info("No materials yet! Upload sum fr 📚")
@@ -100,10 +88,7 @@ else:
             with col_delete:
                 if st.button("Delete", key=f"delete_{item['id']}", use_container_width=True):
                     try:
-                        storage_path = item.get("storage_path")
-                        if storage_path:
-                            delete_from_github(storage_path)
-                        db.collection("teacher_materials").document(item["id"]).delete()
+                        delete_material(item["id"])
                         st.success("Yeeted that file 🗑️")
                         st.rerun()
                     except Exception as e:

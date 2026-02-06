@@ -1,7 +1,12 @@
 import json
 import requests
 from datetime import date
-from github_utils import _get_github_config
+
+try:
+    from github_utils import _get_github_config
+except ImportError:
+    def _get_github_config():
+        raise RuntimeError("GitHub configuration not available")
 
 CALENDAR_FILE_PATH = "data/calendar_events.json"
 SETTINGS_FILE_PATH = "data/semester_settings.json"
@@ -13,7 +18,8 @@ def get_semester_settings():
     Returns a dict with settings like semester_end_date.
     """
     try:
-        config = _get_github_config()
+        from github_utils import _get_github_config as get_config
+        config = get_config()
         url = f"https://raw.githubusercontent.com/{config['repo']}/{config['branch']}/{SETTINGS_FILE_PATH}"
 
         response = requests.get(url)
@@ -54,7 +60,8 @@ def get_calendar_events():
     Returns a list of event dictionaries.
     """
     try:
-        config = _get_github_config()
+        from github_utils import _get_github_config as get_config
+        config = get_config()
         url = f"https://raw.githubusercontent.com/{config['repo']}/{config['branch']}/{CALENDAR_FILE_PATH}"
 
         response = requests.get(url)
@@ -66,7 +73,8 @@ def get_calendar_events():
         events = response.json()
         return events if isinstance(events, list) else []
     except Exception as e:
-        raise RuntimeError(f"Failed to fetch calendar events: {e}")
+        # Return empty list instead of raising error for better resilience
+        return []
 
 
 def save_calendar_events(events):
