@@ -7,3 +7,7 @@ pesuacademy-dev/
 firebase-credentials.json
 google-drive-credentials.json
 .env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
