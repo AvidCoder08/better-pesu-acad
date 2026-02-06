@@ -97,6 +97,13 @@ try:
             "end_date": _parse_date(data.get("end_date")),
             "description": data.get("description", ""),
         })
+except RuntimeError as exc:
+    # Firebase credentials not configured (local development)
+    if "Firebase credentials not found" in str(exc):
+        st.info("📅 Calendar feature is available in production only")
+    else:
+        st.error(f"Calendar is down fr 💔 {exc}")
+    events = []
 except Exception as exc:
     st.error(f"Calendar is down fr 💔 {exc}")
     events = []
