@@ -4,6 +4,48 @@ from datetime import date
 from github_utils import _get_github_config
 
 CALENDAR_FILE_PATH = "data/calendar_events.json"
+SETTINGS_FILE_PATH = "data/semester_settings.json"
+
+
+def get_semester_settings():
+    """
+    Fetch semester settings from GitHub JSON file.
+    Returns a dict with settings like semester_end_date.
+    """
+    try:
+        config = _get_github_config()
+        url = f"https://raw.githubusercontent.com/{config['repo']}/{config['branch']}/{SETTINGS_FILE_PATH}"
+
+        response = requests.get(url)
+        if response.status_code == 404:
+            # File doesn't exist yet, return default
+            return {"semester_end_date": None}
+
+        response.raise_for_status()
+        settings = response.json()
+        return settings if isinstance(settings, dict) else {"semester_end_date": None}
+    except Exception as e:
+        return {"semester_end_date": None}
+
+
+def save_semester_settings(settings):
+    """
+    Save semester settings to GitHub JSON file.
+    """
+    try:
+        from github_utils import upload_to_github
+
+        # Convert settings to JSON
+        json_bytes = json.dumps(settings, indent=2).encode('utf-8')
+
+        # Upload to GitHub
+        upload_to_github(
+            file_bytes=json_bytes,
+            file_path=SETTINGS_FILE_PATH,
+            commit_message="Update semester settings"
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to save semester settings: {e}")
 
 
 def get_calendar_events():

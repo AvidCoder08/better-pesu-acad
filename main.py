@@ -50,7 +50,7 @@ if st.session_state.logged_in and st.session_state.profile:
             section = st.session_state.profile.personal.section if hasattr(st.session_state.profile, 'personal') else 'N/A'
             semester = st.session_state.profile.personal.semester if hasattr(st.session_state.profile, 'personal') else 'N/A'
         st.caption(f"**{name}**")
-        st.caption(f"{section} • Sem {semester}")
+        st.caption(f"{section} • {semester}")
 else:
     # Hide sidebar on login page
     st.markdown("""

@@ -1,7 +1,10 @@
 import streamlit as st
 from datetime import date
 from session_utils import restore_session_from_cookie
-from calendar_utils import get_calendar_events, add_calendar_event, update_calendar_event, delete_calendar_event
+from calendar_utils import (
+    get_calendar_events, add_calendar_event, update_calendar_event, delete_calendar_event,
+    get_semester_settings, save_semester_settings
+)
 from role_utils import is_superadmin
 
 restore_session_from_cookie()
@@ -18,6 +21,38 @@ if not is_superadmin(profile):
 
 st.title("🛡️ Superadmin")
 st.caption("U da GOAT - manage everything 🐐✨")
+
+# Semester Settings Section
+st.subheader("📚 Semester Settings")
+try:
+    settings = get_semester_settings()
+    current_end_date = settings.get("semester_end_date")
+
+    with st.form("semester_settings_form"):
+        if current_end_date:
+            try:
+                default_date = date.fromisoformat(current_end_date)
+            except:
+                default_date = date.today()
+        else:
+            default_date = date.today()
+
+        semester_end = st.date_input("Semester End Date", value=default_date)
+
+        if st.form_submit_button("Save Semester Settings", type="primary"):
+            try:
+                save_semester_settings({"semester_end_date": semester_end.isoformat()})
+                st.success("Semester settings saved! 🎓")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to save settings: {e}")
+
+    if current_end_date:
+        st.info(f"Current semester ends: {current_end_date}")
+except Exception as e:
+    st.error(f"Failed to load semester settings: {e}")
+
+st.divider()
 
 st.subheader("Create Calendar Event")
 with st.form("create_event_form", clear_on_submit=True):

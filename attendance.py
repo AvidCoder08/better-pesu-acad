@@ -3,6 +3,7 @@ import asyncio
 import pandas as pd
 from pesuacademy import PESUAcademy
 from session_utils import restore_session_from_cookie
+from attendance_calculator import calculate_bunkable_classes, get_bunk_calculator_data
 
 restore_session_from_cookie()
 
@@ -198,9 +199,21 @@ if 'attendance_data' in st.session_state and st.session_state.attendance_data:
         }
     )
     
+    # Get bunk calculator data for all courses
+    bunk_data = get_bunk_calculator_data()
+    working_days = bunk_data.get('working_days_remaining', 0)
+    semester_end = bunk_data.get('semester_end_date')
+    bunk_error = bunk_data.get('error')
+    
     # Display course cards with attendance bars
     st.markdown("---")
     st.subheader("📈 Attendance Details")
+    
+    # Show bunk calculator status
+    if bunk_error:
+        st.warning(f"⚠️ Bunk calculator unavailable: {bunk_error}")
+    elif semester_end and working_days > 0:
+        st.info(f"📅 **{working_days}** working days left until {semester_end.strftime('%B %d, %Y')}")
     
     for course in courses:
         if course.attendance and course.attendance.total and course.attendance.total > 0:
@@ -230,9 +243,58 @@ if 'attendance_data' in st.session_state and st.session_state.attendance_data:
                 # Additional details
                 st.metric(f"Classes Attended", f"{attended} out of {total}")
                 
+                # Bunk calculator section
+                if not bunk_error and working_days > 0:
+                    st.markdown("---")
+                    st.markdown("**🧮 Bunk Calculator**")
+                    
+                    # Calculate bunkable classes
+                    bunk_calc = calculate_bunkable_classes(
+                        attended=attended,
+                        total=total,
+                        working_days_remaining=working_days,
+                        classes_per_week=5,  # Assuming 5 classes per week average
+                        min_attendance=75.0
+                    )
+                    
+                    # Display bunk calculator results in columns
+                    bcol1, bcol2, bcol3 = st.columns(3)
+                    
+                    with bcol1:
+                        st.metric(
+                            "Classes Remaining",
+                            f"~{bunk_calc['estimated_remaining']}",
+                            help="Estimated classes left until semester end"
+                        )
+                    
+                    with bcol2:
+                        st.metric(
+                            "Projected Total",
+                            bunk_calc['projected_total'],
+                            help="Total classes by semester end"
+                        )
+                    
+                    with bcol3:
+                        st.metric(
+                            "Projected %",
+                            f"{bunk_calc['projected_attendance']:.1f}%",
+                            help="If you attend all remaining classes"
+                        )
+                    
+                    # Bunk message
+                    if bunk_calc['can_bunk'] and bunk_calc['bunkable_classes'] > 0:
+                        st.success(f"🎉 **YO:** You can bunk **{bunk_calc['bunkable_classes']}** classes and still maintain 75% attendance! Living your best life fr 😎")
+                    elif bunk_calc['classes_needed'] > 0:
+                        st.warning(f"⚠️ **HEADS UP:** You need to attend **{bunk_calc['classes_needed']}** more classes to hit 75% by semester end!")
+                    elif percentage >= 75:
+                        st.info("✅ You're at 75%+ but need to attend all remaining classes to stay safe!")
+                    else:
+                        st.error(f"🚨 **CRITICAL:** Even attending all remaining classes, you'll only reach **{bunk_calc['projected_attendance']:.1f}%**. You might be cooked 💀")
+                
                 # Calculate classes needed to reach 75%
                 classes_needed_for_cutoff = int((total * 0.75) - attended)
                 if percentage < 75:
+                    st.markdown("---")
                     if classes_needed_for_cutoff > 0:
                         if percentage >= 70:
                             st.error(f"🚨 **BRAH:** U gotta show up to like **{classes_needed_for_cutoff}** more classes or ur cooked 💀")
