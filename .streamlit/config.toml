@@ -1,3 +1,4 @@
 [theme]
 font = 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
 base = 'dark'
+primaryColor = '#0091CD'
