@@ -139,8 +139,9 @@ selected_sem = st.selectbox(
     key="course_semester_selector"
 )
 
-# Fetch courses button
-if st.button("📥 Fetch Courses", type="primary", use_container_width=True):
+# Auto-fetch courses when semester changes
+if st.session_state.get('last_selected_sem') != selected_sem or 'courses' not in st.session_state:
+    st.session_state.last_selected_sem = selected_sem
     with st.spinner(f"Fetching semester {selected_sem} courses..."):
         courses_dict, error = asyncio.run(fetch_courses(selected_sem))
         
@@ -149,7 +150,6 @@ if st.button("📥 Fetch Courses", type="primary", use_container_width=True):
         elif courses_dict:
             # Store courses in session state
             st.session_state.courses = courses_dict.get(selected_sem, [])
-            st.success(f"Got {len(st.session_state.courses)} courses! Periodt 💅",icon=":material/check:")
         else:
             st.error("Courses said bye 👋 No data fr")
 
@@ -164,7 +164,8 @@ if 'courses' in st.session_state and st.session_state.courses:
     selected_course_name = st.selectbox(
         "Select Course:",
         options=list(course_options.keys()),
-        key="selected_course"
+        key="selected_course",
+        index=None
     )
     
     if selected_course_name:
@@ -179,8 +180,9 @@ if 'courses' in st.session_state and st.session_state.courses:
         with col3:
             st.metric("Status", selected_course.status)
         
-        # Fetch units for selected course
-        if st.button("📖 Load Units & Materials", type="secondary"):
+        # Auto-fetch units for selected course
+        if st.session_state.get('last_selected_course_id') != selected_course.id:
+            st.session_state.last_selected_course_id = selected_course.id
             with st.spinner("Loading units..."):
                 units, error = asyncio.run(fetch_units(selected_course.id))
                 
@@ -189,7 +191,6 @@ if 'courses' in st.session_state and st.session_state.courses:
                 elif units:
                     st.session_state.current_units = units
                     st.session_state.current_course_id = selected_course.id
-                    st.success(f"Loaded {len(units)} units! Slay 🔥",icon=":material/check:")
                 else:
                     st.info("No units found bestie! This course is empty fr 💀")
         
