@@ -16,6 +16,8 @@ if 'pesu_username' not in st.session_state:
     st.session_state.pesu_username = None
 if 'pesu_password' not in st.session_state:
     st.session_state.pesu_password = None
+if 'restore_attempted' not in st.session_state:
+    st.session_state.restore_attempted = False
 
 # Try to restore session from browser cookies
 restore_session_from_cookie()

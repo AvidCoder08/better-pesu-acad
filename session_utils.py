@@ -87,9 +87,9 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 def get_cookie_manager():
-    """Get or create cookie manager instance stored in session state."""
+    """Get or create cookie manager instance."""
     if "cookie_manager" not in st.session_state:
-        st.session_state.cookie_manager = stx.CookieManager(key=COOKIE_MANAGER_KEY)
+        st.session_state.cookie_manager = stx.CookieManager()
     return st.session_state.cookie_manager
 
 
@@ -99,13 +99,25 @@ def restore_session_from_cookie():
     Only restores if device fingerprint matches to prevent one user's profile
     from being visible on another device. Decrypts encrypted cookie data.
     """
-    if st.session_state.get("logged_in"):
+    # Skip if already logged in or already attempted restore
+    if st.session_state.get("logged_in") or st.session_state.get("restore_attempted"):
         return
+    
+    # Mark that we've attempted restore (prevents multiple attempts)
+    st.session_state.restore_attempted = True
 
     try:
         current_device = get_device_fingerprint()
         cookie_manager = get_cookie_manager()
-        encrypted_cookie = cookie_manager.get(COOKIE_NAME)
+        
+        # Get all cookies - this returns empty dict if not ready yet
+        all_cookies = cookie_manager.get_all()
+        
+        # If cookies aren't ready yet or no session cookie exists
+        if not all_cookies or COOKIE_NAME not in all_cookies:
+            return
+        
+        encrypted_cookie = all_cookies[COOKIE_NAME]
         
         if encrypted_cookie:
             # Decrypt the cookie data
@@ -143,42 +155,45 @@ def restore_session_from_cookie():
 
 def save_session_cookie(username: str, password: str, profile):
     """Save session to browser cookie with encryption and device fingerprint for security."""
-    cookie_manager = get_cookie_manager()
-    
-    # Convert profile to dict
-    if hasattr(profile, 'model_dump'):
-        profile_dict = profile.model_dump()
-    elif hasattr(profile, 'dict'):
-        profile_dict = profile.dict()
-    elif isinstance(profile, dict):
-        profile_dict = profile
-    else:
-        profile_dict = profile.__dict__ if hasattr(profile, '__dict__') else {}
-    
-    session_data = {
-        'username': username,
-        'password': password,
-        'profile': profile_dict,
-        'device_fingerprint': get_device_fingerprint(),  # Add device fingerprint
-    }
-    
-    # Encrypt the session data before saving
-    json_data = json.dumps(session_data)
-    encrypted_data = encrypt_data(json_data)
-    
-    if encrypted_data:
-        # Save encrypted data to browser cookie (expires in 30 days)
-        cookie_manager.set(COOKIE_NAME, encrypted_data, max_age=30*24*60*60)
-    else:
-        # Encryption failed, don't save
+    try:
+        cookie_manager = get_cookie_manager()
+        
+        # Convert profile to dict
+        if hasattr(profile, 'model_dump'):
+            profile_dict = profile.model_dump()
+        elif hasattr(profile, 'dict'):
+            profile_dict = profile.dict()
+        elif isinstance(profile, dict):
+            profile_dict = profile
+        else:
+            profile_dict = profile.__dict__ if hasattr(profile, '__dict__') else {}
+        
+        session_data = {
+            'username': username,
+            'password': password,
+            'profile': profile_dict,
+            'device_fingerprint': get_device_fingerprint(),
+        }
+        
+        # Encrypt the session data before saving
+        json_data = json.dumps(session_data)
+        encrypted_data = encrypt_data(json_data)
+        
+        if encrypted_data:
+            # Save encrypted data to browser cookie (expires in 30 days)
+            cookie_manager.set(COOKIE_NAME, encrypted_data, max_age=30*24*60*60)
+    except Exception as e:
+        # If cookie save fails, continue anyway (user will just need to login again)
         pass
 
 
 def clear_session_cookie():
-    """Clear session cookie."""
+    """Clear session cookie and reset restore flag."""
     try:
         cookie_manager = get_cookie_manager()
         cookie_manager.delete(COOKIE_NAME)
+        if 'restore_attempted' in st.session_state:
+            st.session_state.restore_attempted = False
     except Exception:
         pass
 

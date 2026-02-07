@@ -53,6 +53,7 @@ def main():
             st.session_state.profile = None
             st.session_state.pesu_username = None
             st.session_state.pesu_password = None
+            st.session_state.restore_attempted = False
             clear_session_cookie()
             st.success("Logged out successfully!")
             st.rerun()
