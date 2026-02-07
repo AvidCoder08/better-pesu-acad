@@ -8,7 +8,7 @@ import os
 import base64
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 COOKIE_NAME = "pesu_session"
 COOKIE_MANAGER_KEY = "pesu_cookie_manager"
@@ -47,7 +47,7 @@ def get_encryption_key() -> bytes:
         device_fp = get_device_fingerprint()
         salt = b'pesu_session_salt_v1'  # Static salt for key derivation
         
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
