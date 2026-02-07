@@ -1,7 +1,7 @@
 import streamlit as st
 import base64
 from io import BytesIO
-from session_utils import get_cookie_manager, restore_session_from_cookie
+from session_utils import restore_session_from_cookie, clear_session_cookie
 from role_utils import get_class_id, get_class_id_variants, get_user_ids, is_cr
 
 restore_session_from_cookie()
@@ -134,9 +134,8 @@ st.divider()
 st.header("Account")
 
 if st.button("Logout", use_container_width=True, type="secondary",icon=":material/logout:"):
-    # Clear browser cookie
-    cookie_manager = get_cookie_manager()
-    cookie_manager.delete('pesu_session')
+    # Clear session
+    clear_session_cookie()
     
     # Clear session state
     st.session_state.logged_in = False

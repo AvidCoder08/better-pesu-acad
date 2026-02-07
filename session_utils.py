@@ -11,13 +11,6 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 COOKIE_NAME = "pesu_session"
 ENCRYPTION_KEY_FILE = ".session_key"
-SESSION_STORAGE_DIR = ".session_data"
-
-
-def ensure_session_dir():
-    """Ensure session storage directory exists."""
-    if not os.path.exists(SESSION_STORAGE_DIR):
-        os.makedirs(SESSION_STORAGE_DIR, exist_ok=True)
 
 
 def get_device_fingerprint() -> str:
@@ -92,10 +85,10 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 def restore_session_from_cookie():
-    """Restore session state from encrypted local session file.
+    """Restore session state from browser localStorage if available.
     
-    Only restores if device fingerprint matches to prevent one user's session
-    from being used on a different device.
+    Uses a Streamlit component to read encrypted session from browser localStorage.
+    Device fingerprint is embedded in the encrypted data to prevent cross-device access.
     """
     # Skip if already logged in or already attempted restore
     if st.session_state.get("logged_in") or st.session_state.get("restore_attempted"):
@@ -104,51 +97,68 @@ def restore_session_from_cookie():
     # Mark that we've attempted restore
     st.session_state.restore_attempted = True
     
-    try:
-        ensure_session_dir()
-        current_device = get_device_fingerprint()
-        session_file = os.path.join(SESSION_STORAGE_DIR, f"{current_device}.json.enc")
-        
-        if not os.path.exists(session_file):
-            return
-        
-        # Read encrypted session data from file
-        with open(session_file, 'r') as f:
-            encrypted_data = f.read()
-        
-        # Decrypt the data
-        decrypted_data = decrypt_data(encrypted_data)
-        if not decrypted_data:
-            # Decryption failed, delete the corrupt file
-            os.remove(session_file)
-            return
-        
-        session_data = json.loads(decrypted_data)
-        
-        # Verify device fingerprint matches
-        stored_device = session_data.get("device_fingerprint")
-        if stored_device != current_device:
-            # Device mismatch - shouldn't happen but clear for safety
-            os.remove(session_file)
-            return
-        
-        # Restore session
-        st.session_state.logged_in = True
-        st.session_state.profile = session_data.get("profile")
-        st.session_state.pesu_username = session_data.get("username")
-        st.session_state.pesu_password = session_data.get("password")
-        st.write("🔐 Welcome back! Session restored.") 
-    except Exception as e:
-        # Silently fail
-        pass
-
+    # Create a component that reads from localStorage
+    # This uses pure HTML/JavaScript without external dependencies
+    component_code = """
+    <script>
+    function readSessionCookie() {
+        const data = localStorage.getItem('pesu_session');
+        if (data) {
+            // Send to Streamlit via query params
+            const encrypted = encodeURIComponent(data);
+            window.location.href = window.location.pathname + '?pesu_data=' + encrypted;
+        }
+    }
+    
+    // Try to read session on component load
+    readSessionCookie();
+    </script>
+    """
+    
+    st.components.v1.html(component_code, height=0)
+    
+    # Check if we got session data via query params
+    query_params = st.query_params
+    if 'pesu_data' in query_params:
+        try:
+            encrypted_cookie = query_params['pesu_data']
+            current_device = get_device_fingerprint()
+            
+            # Decrypt the cookie data
+            decrypted_data = decrypt_data(encrypted_cookie)
+            if not decrypted_data:
+                # Decryption failed - likely wrong device
+                return
+            
+            session_data = json.loads(decrypted_data)
+            
+            # Security check: verify device fingerprint matches
+            stored_device = session_data.get("device_fingerprint")
+            if stored_device != current_device:
+                # Device mismatch - CRITICAL: do not restore
+                return
+            
+            # Restore session
+            st.session_state.logged_in = True
+            st.session_state.profile = session_data.get("profile")
+            st.session_state.pesu_username = session_data.get("username")
+            st.session_state.pesu_password = session_data.get("password")
+            
+            # Remove from URL to clean it up
+            st.query_params.clear()
+            st.rerun()
+        except Exception as e:
+            # Silently fail
+            pass
 
 
 
 def save_session_cookie(username: str, password: str, profile):
-    """Save encrypted session to local file for persistence across browser reloads."""
+    """Save encrypted session to browser localStorage.
+    
+    Only accessible from the same device due to device-specific encryption.
+    """
     try:
-        ensure_session_dir()
         current_device = get_device_fingerprint()
         
         # Convert profile to dict
@@ -173,12 +183,15 @@ def save_session_cookie(username: str, password: str, profile):
         encrypted_data = encrypt_data(json_data)
         
         if encrypted_data:
-            # Save to local file (encrypted)
-            session_file = os.path.join(SESSION_STORAGE_DIR, f"{current_device}.json.enc")
-            with open(session_file, 'w') as f:
-                f.write(encrypted_data)
-            
-            st.success("✅ Login successful! You'll stay logged in next time.")
+            # Use JavaScript to save to localStorage (browser storage, not server)
+            js_code = f"""
+            <script>
+            localStorage.setItem('pesu_session', '{encrypted_data}');
+            console.log('✅ Session saved securely to your device');
+            </script>
+            """
+            st.components.v1.html(js_code, height=0)
+            st.success("✅ Login successful! You'll stay logged in on this device.")
         else:
             st.error("Failed to encrypt session")
     except Exception as e:
@@ -186,19 +199,20 @@ def save_session_cookie(username: str, password: str, profile):
 
 
 def clear_session_cookie():
-    """Clear session file and reset restore flag."""
+    """Clear session from browser localStorage and reset restore flag."""
     try:
-        ensure_session_dir()
-        current_device = get_device_fingerprint()
-        session_file = os.path.join(SESSION_STORAGE_DIR, f"{current_device}.json.enc")
+        # Use JavaScript to clear localStorage
+        js_code = """
+        <script>
+        localStorage.removeItem('pesu_session');
+        console.log('Session cleared from browser');
+        </script>
+        """
+        st.components.v1.html(js_code, height=0)
         
-        if os.path.exists(session_file):
-            os.remove(session_file)
-        
+        # Clear session state flags
         if 'restore_attempted' in st.session_state:
             st.session_state.restore_attempted = False
-        if 'session_cookie_data' in st.session_state:
-            del st.session_state.session_cookie_data
     except Exception:
         pass
 
