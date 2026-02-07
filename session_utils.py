@@ -85,82 +85,87 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 def restore_session_from_cookie():
-    """Restore session state from browser localStorage if available.
+    """Restore session state from HTTP cookie if available.
     
-    Uses a Streamlit component to read encrypted session from browser localStorage.
-    Device fingerprint is embedded in the encrypted data to prevent cross-device access.
+    The cookie is encrypted with device-specific key, so it can only be
+    decrypted on the same device where it was created.
     """
-    # Skip if already logged in or already attempted restore
-    if st.session_state.get("logged_in") or st.session_state.get("restore_attempted"):
+    # Skip if already logged in
+    if st.session_state.get("logged_in"):
         return
     
-    # Mark that we've attempted restore
+    # Mark restore attempt
+    if st.session_state.get("restore_attempted"):
+        return
+    
     st.session_state.restore_attempted = True
     
-    # Check if we got session data via query params
+    # Inject code to read HTTP cookie and put it in query params
+    # This is safer than relying on Streamlit to access headers
+    read_cookie_js = """
+    <script>
+    function getCookie(name) {
+        const nameEQ = name + "=";
+        const cookies = document.cookie.split(';');
+        for(let i = 0; i < cookies.length; i++) {
+            let c = cookies[i].trim();
+            if (c.indexOf(nameEQ) === 0) {
+                return decodeURIComponent(c.substring(nameEQ.length));
+            }
+        }
+        return null;
+    }
+    
+    const sessionCookie = getCookie('pesu_session');
+    if (sessionCookie && !window.location.search.includes('pesu_data')) {
+        // Append to URL so Streamlit can read it via query_params
+        const url = new URL(window.location);
+        url.searchParams.set('pesu_data', sessionCookie);
+        window.history.replaceState({}, '', url);
+    }
+    </script>
+    """
+    
+    try:
+        st.components.v1.html(read_cookie_js, height=0)
+    except:
+        pass
+    
+    # Now check if we have the data in query params
     query_params = st.query_params
+    
     if 'pesu_data' in query_params:
         try:
             encrypted_cookie = query_params['pesu_data']
             current_device = get_device_fingerprint()
             
-            # Decrypt the cookie data
+            # Decrypt
             decrypted_data = decrypt_data(encrypted_cookie)
             if not decrypted_data:
-                # Decryption failed - likely wrong device
                 return
             
             session_data = json.loads(decrypted_data)
             
-            # Security check: verify device fingerprint matches
-            stored_device = session_data.get("device_fingerprint")
-            if stored_device != current_device:
-                # Device mismatch - CRITICAL: do not restore
+            # Verify device
+            if session_data.get("device_fingerprint") != current_device:
+                # Device mismatch
+                clear_session_cookie()
                 return
             
-            # Restore session
+            # Restore!
             st.session_state.logged_in = True
             st.session_state.profile = session_data.get("profile")
             st.session_state.pesu_username = session_data.get("username")
             st.session_state.pesu_password = session_data.get("password")
-            
-            # Remove from URL to clean it up
-            st.query_params.clear()
-            st.rerun()
-        except Exception as e:
-            # Silently fail
-            pass
-    else:
-        # Only inject localStorage reader component during app rendering
-        # This avoids import-time errors
-        try:
-            component_code = """
-            <script>
-            function readSessionCookie() {
-                const data = localStorage.getItem('pesu_session');
-                if (data) {
-                    // Send to Streamlit via query params
-                    const encrypted = encodeURIComponent(data);
-                    window.location.href = window.location.pathname + '?pesu_data=' + encrypted;
-                }
-            }
-            
-            // Try to read session on component load
-            readSessionCookie();
-            </script>
-            """
-            
-            st.components.v1.html(component_code, height=0)
         except Exception:
-            # If component fails, just continue
             pass
 
 
 
 def save_session_cookie(username: str, password: str, profile):
-    """Save encrypted session to browser localStorage.
+    """Save encrypted session to HTTP cookie (persists in browser).
     
-    Only accessible from the same device due to device-specific encryption.
+    Only readable on the same device due to device-specific encryption.
     """
     try:
         current_device = get_device_fingerprint()
@@ -187,15 +192,19 @@ def save_session_cookie(username: str, password: str, profile):
         encrypted_data = encrypt_data(json_data)
         
         if encrypted_data:
-            # Use JavaScript to save to localStorage (browser storage, not server)
+            # Use JavaScript to set HTTP cookie (browser stores it automatically)
+            # 30 days expiry
             js_code = f"""
             <script>
-            localStorage.setItem('pesu_session', '{encrypted_data}');
-            console.log('✅ Session saved securely to your device');
+            const date = new Date();
+            date.setTime(date.getTime() + (30 * 24 * 60 * 60 * 1000));
+            const expires = "expires=" + date.toUTCString();
+            document.cookie = "pesu_session=" + encodeURIComponent('{encrypted_data}') + ";" + expires + ";path=/;SameSite=Lax";
+            console.log('✅ Session cookie set');
             </script>
             """
             st.components.v1.html(js_code, height=0)
-            st.success("✅ Login successful! You'll stay logged in on this device.")
+            st.success("✅ Login successful! You'll stay logged in.")
         else:
             st.error("Failed to encrypt session")
     except Exception as e:
@@ -203,18 +212,18 @@ def save_session_cookie(username: str, password: str, profile):
 
 
 def clear_session_cookie():
-    """Clear session from browser localStorage and reset restore flag."""
+    """Clear session cookie from browser."""
     try:
-        # Use JavaScript to clear localStorage
+        # Use JavaScript to delete HTTP cookie
         js_code = """
         <script>
-        localStorage.removeItem('pesu_session');
-        console.log('Session cleared from browser');
+        document.cookie = "pesu_session=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/";
+        console.log('Session cleared');
         </script>
         """
         st.components.v1.html(js_code, height=0)
         
-        # Clear session state flags
+        # Clear flags
         if 'restore_attempted' in st.session_state:
             st.session_state.restore_attempted = False
     except Exception:
