@@ -64,16 +64,16 @@ else:
 profile = st.session_state.profile
 
 pg = st.navigation([page for page in [
-    st.Page("login.py", title="Login", icon=":material/login:") if not st.session_state.logged_in else None,
-    st.Page("dashboard.py", title="Dashboard", icon=":material/dashboard:"),
-    st.Page("courses.py", title="Courses", icon=":material/backpack:"),
-    st.Page("timetable.py", title="Schedule", icon=":material/schedule:"),
-    st.Page("attendance.py", title="Attendance", icon=":material/assignment_turned_in:"),
-    st.Page("marks.py", title="Grades", icon=":material/trophy:"),
-    st.Page("exam_seating.py", title="Exam Seating", icon=":material/place:"),
-    st.Page("admin.py", title="Class Admin", icon=":material/admin_panel_settings:") if st.session_state.logged_in and profile and is_cr(profile) else None,
-    st.Page("superadmin.py", title="Superadmin", icon=":material/security:") if st.session_state.logged_in and profile and is_superadmin(profile) else None,
-    st.Page("settings.py", title="Settings", icon=":material/settings:")
+    st.Page("login.py", title="Login", icon="🔐") if not st.session_state.logged_in else None,
+    st.Page("dashboard.py", title="Dashboard", icon="📊"),
+    st.Page("courses.py", title="Courses", icon="📚"),
+    st.Page("timetable.py", title="Schedule", icon="📅"),
+    st.Page("attendance.py", title="Attendance", icon="✅"),
+    st.Page("marks.py", title="Grades", icon="🏆"),
+    st.Page("exam_seating.py", title="Exam Seating", icon="📍"),
+    st.Page("admin.py", title="Class Admin", icon="👩‍💼") if st.session_state.logged_in and profile and is_cr(profile) else None,
+    st.Page("superadmin.py", title="Superadmin", icon="🔒") if st.session_state.logged_in and profile and is_superadmin(profile) else None,
+    st.Page("settings.py", title="Settings", icon="⚙️")
 ] if page is not None])
 
 pg.run()
