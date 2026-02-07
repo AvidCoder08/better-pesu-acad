@@ -198,9 +198,32 @@ if 'courses' in st.session_state and st.session_state.courses:
             st.markdown("---")
             st.subheader("📑 Course Materials")
             
+            # Initialize expanded_units in session state if not present
+            if 'expanded_units' not in st.session_state:
+                st.session_state.expanded_units = {}
+            
             for unit in st.session_state.current_units:
-                with st.expander(f"📘 {unit.title}"):
-                    if st.button(f"Load Topics for {unit.title}", key=f"load_topics_{unit.id}"):
+                # Auto-load topics if unit expander is marked as needing load
+                if unit.id not in st.session_state.expanded_units:
+                    st.session_state.expanded_units[unit.id] = False
+                
+                # Check if topics need to be loaded
+                if st.session_state.expanded_units[unit.id] and f"topics_{unit.id}" not in st.session_state:
+                    with st.spinner(f"Loading topics for {unit.title}..."):
+                        topics, error = asyncio.run(fetch_topics(unit.id))
+                        if error:
+                            st.error(f"Topics are mid rn fr 😤 {error}")
+                        else:
+                            st.session_state[f"topics_{unit.id}"] = topics
+                
+                # Display unit with expander, keep open if topics are loaded
+                is_open = f"topics_{unit.id}" in st.session_state
+                with st.expander(f"📘 {unit.title}", expanded=is_open):
+                    # Mark unit as expanded for auto-loading
+                    st.session_state.expanded_units[unit.id] = True
+                    
+                    # Auto-load topics if not already loaded
+                    if f"topics_{unit.id}" not in st.session_state:
                         with st.spinner(f"Loading topics for {unit.title}..."):
                             topics, error = asyncio.run(fetch_topics(unit.id))
                             
