@@ -15,7 +15,7 @@ async def login_user(username, password):
         return None, str(e)
 
 def main():
-    st.title("🔐 Login to PESU Academy")
+    st.set_page_config(page_title="Login - Hail Mary", layout="centered")
     
     restore_session_from_cookie()
 
@@ -57,43 +57,46 @@ def main():
             st.success("Logged out successfully!")
             st.rerun()
     else:
-        # Login form
-        st.markdown("Please login with your PESU Academy credentials")
+        # Clean, minimal login form
+        col1, col2, col3 = st.columns([1, 2, 1])
         
-        with st.form("login_form"):
-            username = st.text_input("PRN/SRN", placeholder="Enter your PRN or SRN")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
-            submit = st.form_submit_button("Login", type="primary", use_container_width=True)
+        with col2:
+            st.markdown("# Sign in")
+            st.markdown("---")
             
-            if submit:
-                if not username or not password:
-                    st.error("Gotta enter username AND password bestie 🔑")
-                else:
-                    with st.spinner("Logging in..."):
-                        # Run async login
-                        profile, error = asyncio.run(login_user(username, password))
-                        
-                        if error:
-                            st.error(f"Login said nope 🚫 {error}")
-                        else:
-                            st.session_state.logged_in = True
-                            st.session_state.profile = profile
-                            st.session_state.pesu_username = username
-                            st.session_state.pesu_password = password
+            with st.form("login_form"):
+                username = st.text_input("PRN / SRN", placeholder="PES1UG25CS527")
+                password = st.text_input("Password", type="password", placeholder="Enter your password")
+                submit = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+                
+                if submit:
+                    if not username or not password:
+                        st.error("Gotta enter username AND password bestie 🔑")
+                    else:
+                        with st.spinner("Logging in..."):
+                            # Run async login
+                            profile, error = asyncio.run(login_user(username, password))
                             
-                            # Save session to browser cookie
-                            save_session_cookie(username, password, profile)
-                            
-                            st.success("U in now! Let's gooo 🔥",icon=":material/check:")
-                            st.rerun()
+                            if error:
+                                st.error(f"Login said nope 🚫 {error}")
+                            else:
+                                st.session_state.logged_in = True
+                                st.session_state.profile = profile
+                                st.session_state.pesu_username = username
+                                st.session_state.pesu_password = password
+                                
+                                # Save session to browser cookie
+                                save_session_cookie(username, password, profile)
+                                
+                                st.success("U in now! Let's gooo 🔥")
+                                st.rerun()
+            
+            st.markdown("---")
+            st.markdown(
+                "<div style='text-align: center; font-size: 0.85rem; color: #888;'>"
+                "Session data stored securely in your browser only.</div>",
+                unsafe_allow_html=True
+            )
 
 if __name__ == "__main__":
     main()
-st.markdown("""
-<footer>
-Your session data is stored securely in your browser only. Each device requires its own login.<br>
-This project uses the PESU API created and maintained by seniors and alumni of PESU.<br>
-Made with ❤️ by Shashank Munnangi. <br> 
-If you like this, consider tipping: <a href="https://www.upi.me/pay?pa=soham.s.munnangi@axl">Tip me!</a>. This motivates me to work more on this project!
-</footer>
-""",unsafe_allow_html=True)
