@@ -1,5 +1,12 @@
 import re
-from role_config import SUPERADMIN_IDS, CR_IDS_BY_CLASS
+
+# Safely import role config with defaults
+try:
+    from role_config import SUPERADMIN_IDS, CR_IDS_BY_CLASS
+except (ImportError, KeyError, ModuleNotFoundError):
+    # Fallback to empty defaults if import fails
+    SUPERADMIN_IDS = set()
+    CR_IDS_BY_CLASS = {}
 
 
 def _get_personal(profile):

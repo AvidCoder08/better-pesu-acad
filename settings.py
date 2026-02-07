@@ -2,7 +2,23 @@ import streamlit as st
 import base64
 from io import BytesIO
 from session_utils import restore_session_from_cookie, clear_session_cookie
-from role_utils import get_class_id, get_class_id_variants, get_user_ids, is_cr
+
+# Safely import role utilities
+try:
+    from role_utils import get_class_id, get_class_id_variants, get_user_ids, is_cr
+except (ImportError, KeyError, ModuleNotFoundError):
+    # Fallback functions
+    def get_class_id(profile):
+        return ""
+    
+    def get_class_id_variants(profile):
+        return []
+    
+    def get_user_ids(profile):
+        return set()
+    
+    def is_cr(profile):
+        return False
 
 restore_session_from_cookie()
 

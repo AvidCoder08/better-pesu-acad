@@ -1,7 +1,17 @@
 import streamlit as st
 from dotenv import load_dotenv
 from session_utils import restore_session_from_cookie
-from role_utils import is_superadmin, is_cr
+
+# Safely import role utilities
+try:
+    from role_utils import is_superadmin, is_cr
+except (ImportError, KeyError, ModuleNotFoundError) as e:
+    # Fallback functions if import fails
+    def is_superadmin(profile):
+        return False
+    
+    def is_cr(profile):
+        return False
 
 load_dotenv()
 

@@ -97,26 +97,6 @@ def restore_session_from_cookie():
     # Mark that we've attempted restore
     st.session_state.restore_attempted = True
     
-    # Create a component that reads from localStorage
-    # This uses pure HTML/JavaScript without external dependencies
-    component_code = """
-    <script>
-    function readSessionCookie() {
-        const data = localStorage.getItem('pesu_session');
-        if (data) {
-            // Send to Streamlit via query params
-            const encrypted = encodeURIComponent(data);
-            window.location.href = window.location.pathname + '?pesu_data=' + encrypted;
-        }
-    }
-    
-    // Try to read session on component load
-    readSessionCookie();
-    </script>
-    """
-    
-    st.components.v1.html(component_code, height=0)
-    
     # Check if we got session data via query params
     query_params = st.query_params
     if 'pesu_data' in query_params:
@@ -149,6 +129,30 @@ def restore_session_from_cookie():
             st.rerun()
         except Exception as e:
             # Silently fail
+            pass
+    else:
+        # Only inject localStorage reader component during app rendering
+        # This avoids import-time errors
+        try:
+            component_code = """
+            <script>
+            function readSessionCookie() {
+                const data = localStorage.getItem('pesu_session');
+                if (data) {
+                    // Send to Streamlit via query params
+                    const encrypted = encodeURIComponent(data);
+                    window.location.href = window.location.pathname + '?pesu_data=' + encrypted;
+                }
+            }
+            
+            // Try to read session on component load
+            readSessionCookie();
+            </script>
+            """
+            
+            st.components.v1.html(component_code, height=0)
+        except Exception:
+            # If component fails, just continue
             pass
 
 
