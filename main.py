@@ -78,6 +78,7 @@ pg = st.navigation([page for page in [
     st.Page("attendance.py", title="Attendance", icon="✅"),
     #st.Page("marks.py", title="Grades", icon="🏆"),
     st.Page("exam_seating.py", title="Exam Seating", icon="📍"),
+    st.Page("campusmap.py", title="Campus Map", icon="🗺️"),
     st.Page("admin.py", title="Class Admin", icon="👩‍💼") if st.session_state.logged_in and profile and is_cr(profile) else None,
     st.Page("superadmin.py", title="Superadmin", icon="🧑‍💻") if st.session_state.logged_in and profile and is_superadmin(profile) else None,
     st.Page("settings.py", title="Settings", icon="⚙️")
