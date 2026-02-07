@@ -65,7 +65,7 @@ def main():
             st.markdown("---")
             
             with st.form("login_form"):
-                username = st.text_input("PRN / SRN", placeholder="PES1UG25CS527")
+                username = st.text_input("PRN / SRN", placeholder="Enter your PRN or SRN")
                 password = st.text_input("Password", type="password", placeholder="Enter your password")
                 submit = st.form_submit_button("Sign in", type="primary", use_container_width=True)
                 
