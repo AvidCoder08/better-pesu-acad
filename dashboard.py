@@ -111,11 +111,19 @@ if not events:
     st.info("No events yet bestie! Dead asf 💀")
 else:
     today = date.today()
-    upcoming = [e for e in events if (e.get("end_date") or e.get("start_date") or today) >= today]
+    # Filter upcoming events - show if end_date is in future or start_date is in future
+    upcoming = [e for e in events if (e.get("start_date") and e.get("start_date") >= today) or (e.get("end_date") and e.get("end_date") >= today) or (not e.get("start_date") and not e.get("end_date"))]
     upcoming = sorted(upcoming, key=lambda x: x.get("start_date") or today)
 
     st.subheader("🔔 Upcoming")
-    for event in upcoming[:6]:
+    
+    # Display events in a 3x2 grid
+    grid_events = upcoming[:6]
+    rows = 2
+    cols = 3
+    
+    def display_event_card(event, container):
+        """Display a single event card"""
         start = event.get("start_date")
         end = event.get("end_date")
         title = event.get("title")
@@ -138,25 +146,32 @@ else:
             "milestone": "📍",
         }.get(event_type, "📍")
 
-        card = st.container(border=True)
-        col_icon, col_text = card.columns([1, 9])
-        with col_icon:
-            st.markdown(f"<h1 style='text-align: center;'>{icon}</h1>", unsafe_allow_html=True)
-        with col_text:
-            st.markdown(f"**{title}**")
-            if days_until is None:
-                st.caption(date_str)
-            elif days_until == 0:
-                st.caption(f"{date_str} • **Today!**")
-            elif days_until == 1:
-                st.caption(f"{date_str} • Tomorrow")
-            elif days_until < 7:
-                st.caption(f"{date_str} • In {days_until} days")
-            else:
-                st.caption(date_str)
+        with container:
+            card = st.container(border=True)
+            with card:
+                st.markdown(f"<div style='font-size: 2em; text-align: center;'>{icon}</div>", unsafe_allow_html=True)
+                st.markdown(f"**{title}**")
+                if days_until is None:
+                    st.caption(date_str)
+                elif days_until == 0:
+                    st.caption(f"{date_str} • **Today!**")
+                elif days_until == 1:
+                    st.caption(f"{date_str} • Tomorrow")
+                elif days_until < 7:
+                    st.caption(f"{date_str} • In {days_until} days")
+                else:
+                    st.caption(date_str)
 
-            if event.get("description"):
-                st.caption(event.get("description"))
+                if event.get("description"):
+                    st.caption(event.get("description"))
+    
+    # Create grid layout
+    for row in range(rows):
+        cols_layout = st.columns(cols)
+        for col_idx in range(cols):
+            event_idx = row * cols + col_idx
+            if event_idx < len(grid_events):
+                display_event_card(grid_events[event_idx], cols_layout[col_idx])
 
     with st.expander("📆 Full Calendar"):
         events_sorted = sorted(events, key=lambda x: x.get("start_date") or today)

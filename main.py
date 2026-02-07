@@ -21,8 +21,8 @@ if 'pesu_password' not in st.session_state:
 restore_session_from_cookie()
 
 logo_svg = """
-<svg width="300" height="50">
-  <text x="0" y="40" font-family="Roboto" font-size="40" fill='#fafafa'>Hail Mary (Beta)</text>
+<svg width="450" height="50">
+  <text x="0" y="40" font-family="Roboto" font-size="40" fill='#fafafa'>Better PESU Acad (Beta)</text>
 </svg>
 """
 st.logo(logo_svg)
@@ -69,10 +69,10 @@ pg = st.navigation([page for page in [
     st.Page("courses.py", title="Courses", icon="📚"),
     st.Page("timetable.py", title="Schedule", icon="📅"),
     st.Page("attendance.py", title="Attendance", icon="✅"),
-    st.Page("marks.py", title="Grades", icon="🏆"),
+    #st.Page("marks.py", title="Grades", icon="🏆"),
     st.Page("exam_seating.py", title="Exam Seating", icon="📍"),
     st.Page("admin.py", title="Class Admin", icon="👩‍💼") if st.session_state.logged_in and profile and is_cr(profile) else None,
-    st.Page("superadmin.py", title="Superadmin", icon="🔒") if st.session_state.logged_in and profile and is_superadmin(profile) else None,
+    st.Page("superadmin.py", title="Superadmin", icon="🧑‍💻") if st.session_state.logged_in and profile and is_superadmin(profile) else None,
     st.Page("settings.py", title="Settings", icon="⚙️")
 ] if page is not None])
 

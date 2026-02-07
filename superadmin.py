@@ -59,8 +59,10 @@ with st.form("create_event_form", clear_on_submit=True):
     title = st.text_input("Title", placeholder="ISA 1 WEEK (Units I & II)")
     event_type = st.selectbox("Type", ["assessment", "meeting", "holiday", "milestone"], index=0)
     start_date = st.date_input("Start date", value=date.today())
-    has_end_date = st.checkbox("Has end date", value=False)
-    end_date = st.date_input("End date", value=date.today()) if has_end_date else None
+    has_end_date = st.checkbox("Has end date", value=False, key="create_has_end_date")
+    end_date = st.date_input("End date", value=date.today(), key="create_end_date")
+    if not has_end_date:
+        end_date = None
     description = st.text_area("Description (optional)", placeholder="Any additional notes")
 
     submitted = st.form_submit_button("Add Event", type="primary")
@@ -128,7 +130,9 @@ try:
                         )
                         new_start = st.date_input("Start date", value=date.fromisoformat(start) if start else date.today())
                         has_end = st.checkbox("Has end date", value=bool(end), key=f"has_end_{event['id']}")
-                        new_end = st.date_input("End date", value=date.fromisoformat(end) if end else date.today()) if has_end else None
+                        new_end = st.date_input("End date", value=date.fromisoformat(end) if end else date.today(), key=f"end_date_{event['id']}")
+                        if not has_end:
+                            new_end = None
                         new_desc = st.text_area("Description", value=description_val)
                         saved = st.form_submit_button("Save Changes")
                         if saved:

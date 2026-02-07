@@ -131,6 +131,40 @@ def delete_from_github(file_path):
     if response.status_code not in [200, 204]:
         raise RuntimeError(f"Failed to delete from GitHub: {response.status_code} - {response.text}")
 
+def get_file_from_github(file_path):
+    """
+    Fetch file content from GitHub API (avoids CDN caching issues with raw URLs).
+    
+    Args:
+        file_path: Path in the repo (e.g., "data/calendar_events.json")
+    
+    Returns:
+        bytes: File content, or None if file doesn't exist
+    """
+    config = _get_github_config()
+    
+    url = f"{config['api_base']}/repos/{config['repo']}/contents/{file_path}"
+    
+    headers = {
+        "Authorization": f"token {config['token']}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 404:
+        return None
+    
+    response.raise_for_status()
+    
+    # Decode base64-encoded content from GitHub API
+    file_data = response.json()
+    content_base64 = file_data.get("content", "")
+    
+    if content_base64:
+        return base64.b64decode(content_base64)
+    
+    return None
 
 def get_github_file_url(file_path):
     """

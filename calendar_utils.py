@@ -1,6 +1,6 @@
 import json
 import requests
-from datetime import date
+from datetime import date, datetime
 
 try:
     from github_utils import _get_github_config
@@ -18,17 +18,14 @@ def get_semester_settings():
     Returns a dict with settings like semester_end_date.
     """
     try:
-        from github_utils import _get_github_config as get_config
-        config = get_config()
-        url = f"https://raw.githubusercontent.com/{config['repo']}/{config['branch']}/{SETTINGS_FILE_PATH}"
-
-        response = requests.get(url)
-        if response.status_code == 404:
+        from github_utils import get_file_from_github
+        
+        file_content = get_file_from_github(SETTINGS_FILE_PATH)
+        if file_content is None:
             # File doesn't exist yet, return default
             return {"semester_end_date": None}
-
-        response.raise_for_status()
-        settings = response.json()
+        
+        settings = json.loads(file_content.decode('utf-8'))
         return settings if isinstance(settings, dict) else {"semester_end_date": None}
     except Exception as e:
         return {"semester_end_date": None}
@@ -60,17 +57,14 @@ def get_calendar_events():
     Returns a list of event dictionaries.
     """
     try:
-        from github_utils import _get_github_config as get_config
-        config = get_config()
-        url = f"https://raw.githubusercontent.com/{config['repo']}/{config['branch']}/{CALENDAR_FILE_PATH}"
-
-        response = requests.get(url)
-        if response.status_code == 404:
+        from github_utils import get_file_from_github
+        
+        file_content = get_file_from_github(CALENDAR_FILE_PATH)
+        if file_content is None:
             # File doesn't exist yet, return empty list
             return []
-
-        response.raise_for_status()
-        events = response.json()
+        
+        events = json.loads(file_content.decode('utf-8'))
         return events if isinstance(events, list) else []
     except Exception as e:
         # Return empty list instead of raising error for better resilience
@@ -104,7 +98,7 @@ def add_calendar_event(title, event_type, start_date, end_date=None, description
     events = get_calendar_events()
 
     # Generate a simple ID
-    event_id = f"evt_{len(events) + 1}_{int(date.today().timestamp())}"
+    event_id = f"evt_{len(events) + 1}_{int(datetime.now().timestamp())}"
 
     new_event = {
         "id": event_id,
