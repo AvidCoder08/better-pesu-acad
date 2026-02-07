@@ -65,7 +65,7 @@ profile = st.session_state.profile
 
 pg = st.navigation([page for page in [
     st.Page("login.py", title="Login", icon="🔐") if not st.session_state.logged_in else None,
-    st.Page("dashboard.py", title="Dashboard", icon="📊"),
+    st.Page("dashboard.py", title="Dashboard", icon="🏠"),
     st.Page("courses.py", title="Courses", icon="📚"),
     st.Page("timetable.py", title="Schedule", icon="📅"),
     st.Page("attendance.py", title="Attendance", icon="✅"),
