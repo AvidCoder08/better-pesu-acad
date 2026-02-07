@@ -1,6 +1,5 @@
 .session_data.json
 .session_key
-.pesu_cache_*.enc
 .env
 .env.*
 !.env.example
