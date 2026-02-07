@@ -4,3 +4,5 @@ base = 'dark'
 primaryColor = '#0091CD'
 [client]
 toolbarMode = "minimal"
+[ui]
+hideTopBar = true
