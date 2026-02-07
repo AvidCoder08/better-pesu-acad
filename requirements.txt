@@ -3,7 +3,6 @@ toml
 st-theme
 -e ./pesuacademy-dev
 lxml
-extra-streamlit-components
 python-dotenv
 requests
 cryptography

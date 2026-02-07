@@ -1,4 +1,5 @@
 .session_data.json
+.session_data/
 .session_key
 .env
 .env.*
