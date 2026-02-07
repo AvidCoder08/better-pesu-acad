@@ -1,12 +1,12 @@
 .session_data.json
 .session_key
+.pesu_cache_*.enc
 .env
 .env.*
 !.env.example
 .streamlit/secrets.toml
 firebase-credentials.json
 google-drive-credentials.json
-.env
 __pycache__/
 *.pyc
 *.pyo
