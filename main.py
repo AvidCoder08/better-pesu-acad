@@ -5,7 +5,7 @@ from role_utils import is_superadmin, is_cr
 
 load_dotenv()
 
-st.set_page_config(page_title="Better PESU", page_icon=":books:", layout="wide")
+st.set_page_config(page_title="Better PESU", page_icon=":school:", layout="wide")
 
 # Initialize session state BEFORE restoring from cookie
 if 'logged_in' not in st.session_state:
