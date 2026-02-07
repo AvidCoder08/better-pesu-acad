@@ -30,33 +30,29 @@ def _normalize_class_part(value: str) -> str:
 
 def get_class_id(profile):
     personal = _get_personal(profile)
-    program = str(_get_value(personal, "program", "")).strip()
-    branch = str(_get_value(personal, "branch", "")).strip()
     section = str(_get_value(personal, "section", "")).strip()
     semester_raw = str(_get_value(personal, "semester", "")).strip()
 
     match = re.search(r"\d+", semester_raw)
     semester = match.group(0) if match else semester_raw
 
-    program_clean = _normalize_class_part(program)
-    branch_clean = _normalize_class_part(branch)
     section_clean = _normalize_class_part(section)
     semester_clean = _normalize_class_part(semester)
 
-    return f"{program_clean}-{branch_clean}-Sem{semester_clean}-{section_clean}"
+    return f"Sem{semester_clean}-{section_clean}"
 
 
 def get_class_id_variants(profile):
     class_id = get_class_id(profile)
-    parts = class_id.split("-")
-    if len(parts) != 4:
-        return [class_id]
+    return [class_id]
 
-    program, branch, sem, section = parts
-    variants = [class_id]
-    if branch:
-        variants.append(f"{program}--{sem}-{section}")
-    return variants
+
+def get_section_from_class_id(class_id):
+    """Extract section from class_id. Format: Sem{semester}-{section}"""
+    parts = class_id.split("-")
+    if len(parts) >= 2:
+        return parts[-1]  # Last part is the section
+    return None
 
 
 def is_superadmin(profile):

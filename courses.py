@@ -4,8 +4,8 @@ from pesuacademy import PESUAcademy
 import json
 import os
 from session_utils import restore_session_from_cookie
-from role_utils import get_class_id, is_cr
-from materials_utils import get_materials_by_class
+from role_utils import get_class_id, is_cr, get_section_from_class_id
+from materials_utils import get_materials_by_section
 
 restore_session_from_cookie()
 
@@ -28,16 +28,17 @@ material_source = st.radio(
 
 if material_source == "Teacher Files":
     class_id = get_class_id(profile)
+    section = get_section_from_class_id(class_id)
     st.subheader("Teacher Files")
-    st.caption(f"Class: {class_id}")
+    st.caption(f"Class: {class_id} • Section: {section} 📍")
 
     if is_cr(profile):
         st.page_link("admin.py", label="Go to Class Admin", icon="🛡️")
 
     course_filter = st.text_input("Filter by course code (optional)", placeholder="UE22CS202")
     
-    # Get all materials for this class
-    materials = get_materials_by_class(class_id)
+    # Get all materials for this section only
+    materials = get_materials_by_section(class_id, section)
     
     # Filter by course code if provided
     if course_filter.strip():
@@ -52,6 +53,7 @@ if material_source == "Teacher Files":
             filename = item.get("filename", "file")
             with st.expander(f"{title} • {filename}"):
                 st.write(f"Course: {item.get('course_code', '')}")
+                st.write(f"Section: {item.get('section', 'N/A')} 📍")
                 st.write(f"Uploaded at: {item.get('uploaded_at', '')}")
                 file_url = item.get("file_url")
                 if file_url:

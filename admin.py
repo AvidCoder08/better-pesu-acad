@@ -1,9 +1,9 @@
 import streamlit as st
 from datetime import datetime
 from session_utils import restore_session_from_cookie
-from role_utils import is_cr, get_class_id, get_user_ids
+from role_utils import is_cr, get_class_id, get_user_ids, get_section_from_class_id
 from github_utils import upload_to_github, delete_from_github
-from materials_utils import add_material, get_materials_by_class, delete_material
+from materials_utils import add_material, get_materials_by_section, delete_material
 
 restore_session_from_cookie()
 
@@ -21,15 +21,17 @@ st.title("👩‍💼 Class Admin")
 st.caption("Upload teacher files so ur class eats 📚✨")
 
 class_id = get_class_id(profile)
+section = get_section_from_class_id(class_id)
 user_ids = get_user_ids(profile)
 
 st.info(f"Your class: {class_id} 🏫")
+st.caption(f"Section: {section} 📍")
 
 st.subheader("Upload Materials")
 with st.form("upload_teacher_materials"):
     course_code = st.text_input("Course Code", placeholder="UE22CS202")
     course_title = st.text_input("Course Title", placeholder="Data Structures")
-    visibility = st.selectbox("Visibility", ["Class Only"], index=0, disabled=True)
+    visibility = st.selectbox("Visibility", ["Section Only"], index=0, disabled=True)
     files = st.file_uploader("Upload files", accept_multiple_files=True)
     submit = st.form_submit_button("Upload", type="primary")
 
@@ -54,7 +56,8 @@ with st.form("upload_teacher_materials"):
                         file_url=public_url,
                         content_type=uploaded.type,
                         size=uploaded.size,
-                        uploaded_by=next(iter(user_ids)) if user_ids else "unknown"
+                        uploaded_by=next(iter(user_ids)) if user_ids else "unknown",
+                        section=section
                     )
                 st.success("Uploaded fr! Your class eats now 🔥")
                 st.rerun()
@@ -64,9 +67,10 @@ with st.form("upload_teacher_materials"):
                 st.code(traceback.format_exc())
 
 st.divider()
-st.subheader("Existing Class Materials")
+st.subheader("Existing Section Materials")
+st.caption(f"Only accessible by students in {section} 📍")
 
-materials = get_materials_by_class(class_id)
+materials = get_materials_by_section(class_id, section)
 
 if not materials:
     st.info("No materials yet! Upload sum fr 📚")
@@ -77,6 +81,7 @@ else:
         filename = item.get("filename", "file")
         with st.expander(f"{title} • {filename}"):
             st.write(f"Course: {item.get('course_code', '')}")
+            st.write(f"Section: {item.get('section', 'N/A')} 📍")
             st.write(f"Uploaded at: {item.get('uploaded_at', '')}")
             file_url = item.get("file_url")
             if file_url:

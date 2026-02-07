@@ -49,18 +49,27 @@ def save_materials(materials):
 
 
 def add_material(class_id, course_code, course_title, filename, storage_path, 
-                 file_url, content_type, size, uploaded_by):
+                 file_url, content_type, size, uploaded_by, section=None):
     """
     Add a new teacher material.
+    
+    Args:
+        section: The section this material is for. If not provided, will be extracted from class_id.
     """
     materials = get_materials()
 
     # Generate a simple ID
     material_id = f"mat_{len(materials) + 1}_{int(datetime.utcnow().timestamp())}"
+    
+    # Extract section from class_id if not provided
+    if not section:
+        from role_utils import get_section_from_class_id
+        section = get_section_from_class_id(class_id)
 
     new_material = {
         "id": material_id,
         "class_id": class_id,
+        "section": section,
         "course_code": course_code,
         "course_title": course_title,
         "filename": filename,
@@ -107,6 +116,25 @@ def delete_material(material_id):
     materials = [m for m in materials if m.get("id") != material_id]
     save_materials(materials)
     return material
+
+
+def get_materials_by_section(class_id, section=None):
+    """
+    Get all materials for a specific section.
+    
+    Args:
+        class_id: The class ID (format: {program}-{branch}-Sem{semester}-{section})
+        section: Optional section to filter by. If not provided, extracted from class_id.
+    
+    Returns:
+        List of material dictionaries accessible by this section only.
+    """
+    if not section:
+        from role_utils import get_section_from_class_id
+        section = get_section_from_class_id(class_id)
+    
+    materials = get_materials()
+    return [m for m in materials if m.get("class_id") == class_id and m.get("section") == section]
 
 
 def get_materials_by_class(class_id):
