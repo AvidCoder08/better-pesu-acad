@@ -35,14 +35,7 @@ html, body, [class*="css"]  {
 
 </style>
 """,unsafe_allow_html=True)
-hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            header {visibility: hidden;}
-            footer {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 
 # Show login status in sidebar
 if st.session_state.logged_in and st.session_state.profile:

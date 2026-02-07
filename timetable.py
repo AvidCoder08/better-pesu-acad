@@ -131,23 +131,7 @@ if 'timetable' in st.session_state and st.session_state.timetable:
             st.info(f"**{day_display}** - No classes! Touch grass 🌱")
     
     st.divider()
-    st.subheader("📊 Schedule Stats")
     
-    total_classes = 0
-    total_break_time = 0
-    
-    for day in timetable.days.values():
-        for slot in day:
-            if not slot.is_break:
-                total_classes += 1
-            else:
-                total_break_time += slot.time.duration
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Total Classes per Week", total_classes)
-    with col2:
-        st.metric("Break Time (mins)", total_break_time)
     
     st.info("💡 **Pro Tip:** Save this and never be late to class. Your attendance will thank you fr 🙏")
 else:
