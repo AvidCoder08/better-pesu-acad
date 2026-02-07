@@ -4,9 +4,15 @@ import extra_streamlit_components as stx
 import hashlib
 import platform
 import socket
+import os
+import base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
 
 COOKIE_NAME = "pesu_session"
 COOKIE_MANAGER_KEY = "pesu_cookie_manager"
+ENCRYPTION_KEY_FILE = ".session_key"
 
 
 def get_device_fingerprint() -> str:
@@ -27,6 +33,59 @@ def get_device_fingerprint() -> str:
         return "unknown_device"
 
 
+def get_encryption_key() -> bytes:
+    """Get or generate encryption key for cookie data.
+    
+    The key is stored locally and tied to this device, ensuring cookies
+    are encrypted and can only be decrypted on the same machine.
+    """
+    if os.path.exists(ENCRYPTION_KEY_FILE):
+        with open(ENCRYPTION_KEY_FILE, 'rb') as f:
+            return f.read()
+    else:
+        # Generate new key based on device fingerprint
+        device_fp = get_device_fingerprint()
+        salt = b'pesu_session_salt_v1'  # Static salt for key derivation
+        
+        kdf = PBKDF2(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(device_fp.encode()))
+        
+        # Save key to file
+        with open(ENCRYPTION_KEY_FILE, 'wb') as f:
+            f.write(key)
+        
+        return key
+
+
+def encrypt_data(data: str) -> str:
+    """Encrypt session data before storing in cookie."""
+    try:
+        key = get_encryption_key()
+        fernet = Fernet(key)
+        encrypted = fernet.encrypt(data.encode())
+        return base64.urlsafe_b64encode(encrypted).decode()
+    except Exception:
+        return None
+
+
+def decrypt_data(encrypted_data: str) -> str:
+    """Decrypt session data from cookie."""
+    try:
+        key = get_encryption_key()
+        fernet = Fernet(key)
+        decoded = base64.urlsafe_b64decode(encrypted_data.encode())
+        decrypted = fernet.decrypt(decoded)
+        return decrypted.decode()
+    except Exception:
+        return None
+
+
+
 def get_cookie_manager():
     """Get or create cookie manager instance stored in session state."""
     if "cookie_manager" not in st.session_state:
@@ -38,7 +97,7 @@ def restore_session_from_cookie():
     """Restore session state from browser cookie if available.
     
     Only restores if device fingerprint matches to prevent one user's profile
-    from being visible on another device.
+    from being visible on another device. Decrypts encrypted cookie data.
     """
     if st.session_state.get("logged_in"):
         return
@@ -46,11 +105,18 @@ def restore_session_from_cookie():
     try:
         current_device = get_device_fingerprint()
         cookie_manager = get_cookie_manager()
-        session_cookie = cookie_manager.get(COOKIE_NAME)
+        encrypted_cookie = cookie_manager.get(COOKIE_NAME)
         
-        if session_cookie:
+        if encrypted_cookie:
+            # Decrypt the cookie data
+            decrypted_data = decrypt_data(encrypted_cookie)
+            if not decrypted_data:
+                # Decryption failed, clear cookie
+                clear_session_cookie()
+                return
+            
             try:
-                session_data = json.loads(session_cookie)
+                session_data = json.loads(decrypted_data)
             except json.JSONDecodeError:
                 # Cookie is corrupted, clear it
                 clear_session_cookie()
@@ -76,7 +142,7 @@ def restore_session_from_cookie():
 
 
 def save_session_cookie(username: str, password: str, profile):
-    """Save session to browser cookie with device fingerprint for security."""
+    """Save session to browser cookie with encryption and device fingerprint for security."""
     cookie_manager = get_cookie_manager()
     
     # Convert profile to dict
@@ -96,15 +162,23 @@ def save_session_cookie(username: str, password: str, profile):
         'device_fingerprint': get_device_fingerprint(),  # Add device fingerprint
     }
     
-    # Save to browser cookie (expires in 30 days)
-    cookie_manager.set('pesu_session', json.dumps(session_data), max_age=30*24*60*60)
+    # Encrypt the session data before saving
+    json_data = json.dumps(session_data)
+    encrypted_data = encrypt_data(json_data)
+    
+    if encrypted_data:
+        # Save encrypted data to browser cookie (expires in 30 days)
+        cookie_manager.set(COOKIE_NAME, encrypted_data, max_age=30*24*60*60)
+    else:
+        # Encryption failed, don't save
+        pass
 
 
 def clear_session_cookie():
     """Clear session cookie."""
     try:
         cookie_manager = get_cookie_manager()
-        cookie_manager.delete('pesu_session')
+        cookie_manager.delete(COOKIE_NAME)
     except Exception:
         pass
 

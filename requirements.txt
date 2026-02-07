@@ -6,3 +6,4 @@ lxml
 extra-streamlit-components
 python-dotenv
 requests
+cryptography
