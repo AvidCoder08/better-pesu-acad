@@ -3,11 +3,6 @@ from session_utils import restore_session_from_cookie
 
 restore_session_from_cookie()
 
-# Check if user is logged in
-if not st.session_state.get('logged_in', False):
-    st.warning("⚠️ You need to log in first!")
-    st.stop()
-
 # Get profile data
 profile = st.session_state.profile
 

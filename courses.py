@@ -6,10 +6,6 @@ from materials_utils import add_material, get_materials_by_section, delete_mater
 
 restore_session_from_cookie()
 
-if not st.session_state.get('logged_in', False):
-    st.warning("⚠️ Yo, gotta log in first no cap 🔐")
-    st.stop()
-
 st.title("📚 Course Materials")
 st.caption("Share & manage course materials organized by subject")
 
