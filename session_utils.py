@@ -6,12 +6,24 @@ import socket
 import os
 import base64
 import time
+import uuid
+from extra_streamlit_components import CookieManager
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+COOKIE_NAME = "pesu_session_id"
 ENCRYPTION_KEY_FILE = ".session_key"
 SESSION_DIR = ".sessions"
+
+# Initialize cookie manager once
+_cookie_manager = None
+
+def get_cookie_manager():
+    global _cookie_manager
+    if _cookie_manager is None:
+        _cookie_manager = CookieManager()
+    return _cookie_manager
 
 
 def get_device_fingerprint() -> str:
@@ -30,30 +42,21 @@ def get_device_fingerprint() -> str:
         return "unknown_device"
 
 
-def get_browser_id() -> str:
-    """Get a unique ID for this browser/user session.
+def get_device_fingerprint() -> str:
+    """Generate a device fingerprint for validation.
     
-    Uses Streamlit's session ID which is unique per browser connection.
-    This ensures each user on Streamlit Cloud gets their own session file.
+    Note: On Streamlit Cloud, this returns the server's info, so it's only
+    used for validation, not for unique identification.
     """
     try:
-        # Try to get Streamlit's unique session ID
-        from streamlit.runtime.scriptrunner import get_script_run_ctx
-        ctx = get_script_run_ctx()
-        if ctx and ctx.session_id:
-            # Use Streamlit's session ID - unique per browser
-            return ctx.session_id
-    except:
-        pass
-    
-    # Fallback: generate ID in session_state
-    if "persistent_browser_id" not in st.session_state:
-        # Generate unique ID combining timestamp and random
-        import random
-        random_part = ''.join([str(random.randint(0, 9)) for _ in range(12)])
-        st.session_state.persistent_browser_id = f"{int(time.time())}_{random_part}"
-    
-    return st.session_state.persistent_browser_id
+        machine_name = socket.gethostname()
+        system = platform.system()
+        processor = platform.processor()
+        hw_string = f"{machine_name}:{system}:{processor}"
+        device_id = hashlib.sha256(hw_string.encode()).hexdigest()[:16]
+        return device_id
+    except Exception:
+        return "unknown_device"
 
 
 def get_encryption_key() -> bytes:
@@ -110,7 +113,7 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 def restore_session_from_cookie():
-    """Restore session from server-side storage (no cookies/URLs needed)."""
+    """Restore session from cookie + server-side file."""
     if st.session_state.get("logged_in"):
         return
 
@@ -120,14 +123,22 @@ def restore_session_from_cookie():
     st.session_state.restore_attempted = True
 
     try:
-        browser_id = get_browser_id()
-        device_fp = get_device_fingerprint()
+        # Get session ID from cookie
+        cookie_manager = get_cookie_manager()
+        cookies = cookie_manager.get_all()
+        
+        if not cookies or COOKIE_NAME not in cookies:
+            return
+        
+        session_id = cookies[COOKIE_NAME]
+        if not session_id:
+            return
         
         # Create sessions directory if needed
         os.makedirs(SESSION_DIR, exist_ok=True)
         
-        # Look for session file for this browser
-        session_file = os.path.join(SESSION_DIR, f"{hashlib.md5(browser_id.encode()).hexdigest()}.json")
+        # Look for session file
+        session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
         if not os.path.exists(session_file):
             return
 
@@ -165,9 +176,10 @@ def restore_session_from_cookie():
 
 
 def save_session_cookie(username: str, password: str, profile):
-    """Save encrypted session to server-side storage (no cookies/URLs needed)."""
+    """Save encrypted session to server file + store session ID in cookie."""
     try:
-        browser_id = get_browser_id()
+        # Generate unique session ID (small, won't cause 414)
+        session_id = str(uuid.uuid4())
 
         # Prepare session data
         if hasattr(profile, "model_dump"):
@@ -196,23 +208,36 @@ def save_session_cookie(username: str, password: str, profile):
         # Create sessions directory
         os.makedirs(SESSION_DIR, exist_ok=True)
         
-        # Save to browser-specific file (one session per browser)
-        session_file = os.path.join(SESSION_DIR, f"{hashlib.md5(browser_id.encode()).hexdigest()}.json")
+        # Save to file named with session ID
+        session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
         with open(session_file, 'w') as f:
             f.write(encrypted_data)
+        
+        # Store only the session ID in cookie (36 chars, no 414 error)
+        cookie_manager = get_cookie_manager()
+        cookie_manager.set(COOKIE_NAME, session_id, max_age=30 * 24 * 60 * 60)
         
     except Exception as e:
         st.error(f"Error saving session: {str(e)}")
 
 
 def clear_session_cookie():
-    """Clear session from server-side storage."""
+    """Clear session cookie and delete server-side file."""
     try:
-        browser_id = get_browser_id()
-        session_file = os.path.join(SESSION_DIR, f"{hashlib.md5(browser_id.encode()).hexdigest()}.json")
+        # Get session ID from cookie
+        cookie_manager = get_cookie_manager()
+        cookies = cookie_manager.get_all()
         
-        if os.path.exists(session_file):
-            os.remove(session_file)
+        if cookies and COOKIE_NAME in cookies:
+            session_id = cookies[COOKIE_NAME]
+            
+            # Delete session file
+            session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
+            if os.path.exists(session_file):
+                os.remove(session_file)
+        
+        # Delete cookie
+        cookie_manager.delete(COOKIE_NAME)
         
         if "restore_attempted" in st.session_state:
             st.session_state.restore_attempted = False
