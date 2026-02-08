@@ -1,284 +1,138 @@
 import streamlit as st
-import asyncio
-from pesuacademy import PESUAcademy
-import json
-import os
+from datetime import datetime
 from session_utils import restore_session_from_cookie
-from role_utils import get_class_id, is_cr, get_section_from_class_id
-from materials_utils import get_materials_by_section
+from github_utils import upload_to_github, delete_from_github
+from materials_utils import add_material, get_materials_by_section, delete_material
 
 restore_session_from_cookie()
 
-# Check if user is logged in
 if not st.session_state.get('logged_in', False):
     st.warning("⚠️ Yo, gotta log in first no cap 🔐")
-    st.page_link("login.py", label="Go to Login", icon="🔐")
     st.stop()
 
-st.title("📚 Courses & Materials")
+st.title("📚 Course Materials")
+st.caption("Share & manage course materials organized by subject")
 
-# Get profile early for role checks
+# Get profile info
 profile = st.session_state.profile
 
-material_source = st.radio(
-    "Choose material source:",
-    options=["PESU Academy", "Teacher Files"],
-    horizontal=True,
-)
-
-if material_source == "Teacher Files":
-    class_id = get_class_id(profile)
-    section = get_section_from_class_id(class_id)
-    st.subheader("Teacher Files")
-    st.caption(f"Class: {class_id} • Section: {section} 📍")
-
-    if is_cr(profile):
-        st.page_link("admin.py", label="Go to Class Admin", icon="🛡️")
-
-    course_filter = st.text_input("Filter by course code (optional)", placeholder="UE22CS202")
-    
-    # Get all materials for this section only
-    materials = get_materials_by_section(class_id, section)
-    
-    # Filter by course code if provided
-    if course_filter.strip():
-        materials = [m for m in materials if m.get("course_code") == course_filter.strip()]
-
-    if not materials:
-        st.info("No teacher materials found bestie! CRs said JK 😭")
-    else:
-        materials = sorted(materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
-        for item in materials:
-            title = item.get("course_title") or item.get("course_code") or "Course"
-            filename = item.get("filename", "file")
-            with st.expander(f"{title} • {filename}"):
-                st.write(f"Course: {item.get('course_code', '')}")
-                st.write(f"Section: {item.get('section', 'N/A')} 📍")
-                st.write(f"Uploaded at: {item.get('uploaded_at', '')}")
-                file_url = item.get("file_url")
-                if file_url:
-                    st.link_button("Open File", file_url, type="primary")
-                else:
-                    st.error("Link is lowkey broken rn 🪦")
-
-    st.stop()
-
-# Get profile to determine current semester
 if isinstance(profile, dict):
     personal = profile.get('personal', {})
-    sem_str = personal.get('semester', '1') if isinstance(personal, dict) else personal.get('semester', '1')
+    user_ids = personal.get('puid', []) if isinstance(personal, dict) else personal.get('puid', [])
 else:
-    sem_str = profile.personal.semester
+    user_ids = profile.personal.puid if hasattr(profile, 'personal') else []
 
-# Parse semester
-try:
-    if isinstance(sem_str, str):
-        current_sem = int(sem_str.split('-')[-1]) if '-' in sem_str else int(sem_str)
-    else:
-        current_sem = int(sem_str)
-except:
-    current_sem = 1
+st.markdown("---")
+st.subheader("📤 Upload Materials")
+st.caption("Upload course materials to share with others")
 
-async def fetch_courses(semester):
-    """Fetch courses from PESU Academy API"""
-    try:
-        pesu = await PESUAcademy.login(
-            st.session_state.pesu_username,
-            st.session_state.pesu_password
-        )
-        courses = await pesu.get_courses(semester)
-        await pesu.close()
-        return courses, None
-    except Exception as e:
-        return None, str(e)
+with st.form("upload_materials", clear_on_submit=True):
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        course_code = st.text_input("Course Code", placeholder="UE22CS202", help="e.g., UE22CS202")
+    
+    with col2:
+        course_title = st.text_input("Course Title", placeholder="Data Structures", help="e.g., Data Structures")
+    
+    files = st.file_uploader("Upload files", accept_multiple_files=True, help="Select one or more files to upload")
+    
+    submit = st.form_submit_button("Upload", type="primary", use_container_width=True)
 
-async def fetch_units(course_id):
-    """Fetch units for a course"""
-    try:
-        pesu = await PESUAcademy.login(
-            st.session_state.pesu_username,
-            st.session_state.pesu_password
-        )
-        units = await pesu.get_units_for_course(course_id)
-        await pesu.close()
-        return units, None
-    except Exception as e:
-        return None, str(e)
-
-async def fetch_topics(unit_id):
-    """Fetch topics for a unit"""
-    try:
-        pesu = await PESUAcademy.login(
-            st.session_state.pesu_username,
-            st.session_state.pesu_password
-        )
-        topics = await pesu.get_topics_for_unit(unit_id)
-        await pesu.close()
-        return topics, None
-    except Exception as e:
-        return None, str(e)
-
-async def fetch_materials(topic, material_type_id):
-    """Fetch material links for a topic"""
-    try:
-        pesu = await PESUAcademy.login(
-            st.session_state.pesu_username,
-            st.session_state.pesu_password
-        )
-        materials = await pesu.get_material_links(topic, material_type_id)
-        await pesu.close()
-        return materials, None
-    except Exception as e:
-        return None, str(e)
-
-# Semester selector
-selected_sem = st.selectbox(
-    "Select Semester:",
-    options=list(range(1, current_sem + 1)),
-    index=current_sem - 1,
-    key="course_semester_selector"
-)
-
-# Auto-fetch courses when semester changes
-if st.session_state.get('last_selected_sem') != selected_sem or 'courses' not in st.session_state:
-    st.session_state.last_selected_sem = selected_sem
-    with st.spinner(f"Fetching semester {selected_sem} courses..."):
-        courses_dict, error = asyncio.run(fetch_courses(selected_sem))
-        
-        if error:
-            st.error(f"Couldn't get courses ngl 😪 {error}")
-        elif courses_dict:
-            # Store courses in session state
-            st.session_state.courses = courses_dict.get(selected_sem, [])
+    if submit:
+        if not course_code.strip():
+            st.error("Course code is required! 📝")
+        elif not course_title.strip():
+            st.error("Course title is required! 📝")
+        elif not files:
+            st.error("Please select at least one file to upload! 📁")
         else:
-            st.error("Courses said bye 👋 No data fr")
-
-# Display courses if available
-if 'courses' in st.session_state and st.session_state.courses:
-    st.markdown("---")
-    st.subheader(f"Semester {selected_sem} Courses")
-    
-    # Create course selection
-    course_options = {f"{course.code} - {course.title}": course for course in st.session_state.courses}
-    
-    selected_course_name = st.selectbox(
-        "Select Course:",
-        options=list(course_options.keys()),
-        key="selected_course",
-        index=None
-    )
-    
-    if selected_course_name:
-        selected_course = course_options[selected_course_name]
-        
-        # Display course info
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Course Code", selected_course.code)
-        with col2:
-            st.metric("Type", selected_course.type)
-        with col3:
-            st.metric("Status", selected_course.status)
-        
-        # Auto-fetch units for selected course
-        if st.session_state.get('last_selected_course_id') != selected_course.id:
-            st.session_state.last_selected_course_id = selected_course.id
-            with st.spinner("Loading units..."):
-                units, error = asyncio.run(fetch_units(selected_course.id))
-                
-                if error:
-                    st.error(f"Units are being sus rn 😒 {error}")
-                elif units:
-                    st.session_state.current_units = units
-                    st.session_state.current_course_id = selected_course.id
-                else:
-                    st.info("No units found bestie! This course is empty fr 💀")
-        
-        # Display units and materials
-        if 'current_units' in st.session_state and st.session_state.current_units and st.session_state.get('current_course_id') == selected_course.id:
-            st.markdown("---")
-            st.subheader("📑 Course Materials")
-            
-            # Initialize expanded_units in session state if not present
-            if 'expanded_units' not in st.session_state:
-                st.session_state.expanded_units = {}
-            
-            for unit in st.session_state.current_units:
-                # Auto-load topics if unit expander is marked as needing load
-                if unit.id not in st.session_state.expanded_units:
-                    st.session_state.expanded_units[unit.id] = False
-                
-                # Check if topics need to be loaded
-                if st.session_state.expanded_units[unit.id] and f"topics_{unit.id}" not in st.session_state:
-                    with st.spinner(f"Loading topics for {unit.title}..."):
-                        topics, error = asyncio.run(fetch_topics(unit.id))
-                        if error:
-                            st.error(f"Topics are mid rn fr 😤 {error}")
-                        else:
-                            st.session_state[f"topics_{unit.id}"] = topics
-                
-                # Display unit with expander, keep open if topics are loaded
-                is_open = f"topics_{unit.id}" in st.session_state
-                with st.expander(f"📘 {unit.title}", expanded=is_open):
-                    # Mark unit as expanded for auto-loading
-                    st.session_state.expanded_units[unit.id] = True
-                    
-                    # Auto-load topics if not already loaded
-                    if f"topics_{unit.id}" not in st.session_state:
-                        with st.spinner(f"Loading topics for {unit.title}..."):
-                            topics, error = asyncio.run(fetch_topics(unit.id))
-                            
-                            if error:
-                                st.error(f"Topics are mid rn fr 😤 {error}")
-                            else:
-                                st.session_state[f"topics_{unit.id}"] = topics
-                                st.rerun()
-                    
-                    # Display topics if loaded
-                    if f"topics_{unit.id}" in st.session_state:
-                        topics = st.session_state[f"topics_{unit.id}"]
+            try:
+                with st.spinner(f"Uploading {len(files)} file(s)..."):
+                    for uploaded_file in files:
+                        # Create storage path - organized by subject/course code
+                        storage_path = f"course_materials/{course_code.strip()}/{uploaded_file.name}"
                         
-                        for topic in topics:
-                            st.markdown(f"**📝 {topic.title}**")
-                            
-                            # Material type selector
-                            material_types = {
-                                "Lecture Notes": "1",
-                                "Slides": "2",
-                                "Notes": "3",
-                                "Lab Materials": "4",
-                                "Additional Resources": "5"
-                            }
-                            
-                            cols = st.columns(len(material_types))
-                            for idx, (mat_name, mat_id) in enumerate(material_types.items()):
-                                with cols[idx]:
-                                    if st.button(mat_name, key=f"mat_{topic.id}_{mat_id}", use_container_width=True):
-                                        with st.spinner(f"Fetching {mat_name}..."):
-                                            materials, error = asyncio.run(fetch_materials(topic, mat_id))
-                                            
-                                            if error:
-                                                st.error(f"Nah that ain't it chief 💀 {error}")
-                                            elif not materials:
-                                                st.info(f"No {mat_name} available oof 😭")
-                                            else:
-                                                st.session_state[f"materials_{topic.id}_{mat_id}"] = materials
-                                                st.rerun()
-                            
-                            # Display materials if loaded
-                            for mat_name, mat_id in material_types.items():
-                                mat_key = f"materials_{topic.id}_{mat_id}"
-                                if mat_key in st.session_state:
-                                    materials = st.session_state[mat_key]
-                                    if materials:
-                                        st.markdown(f"**{mat_name}:**")
-                                        for material in materials:
-                                            if material.is_pdf:
-                                                st.markdown(f"📄 [{material.title}]({material.url})")
-                                            else:
-                                                st.markdown(f"🔗 [{material.title}]({material.url})")
-                            
-                            st.markdown("---")
+                        # Upload to GitHub
+                        public_url = upload_to_github(
+                            uploaded_file.getvalue(), 
+                            storage_path, 
+                            commit_message=f"Upload {course_code.strip()}: {uploaded_file.name}"
+                        )
+                        
+                        # Add to materials database
+                        add_material(
+                            course_code=course_code.strip(),
+                            course_title=course_title.strip(),
+                            filename=uploaded_file.name,
+                            file_url=public_url,
+                            section=None,  # No section classification
+                            uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            uploaded_by=user_ids[0] if user_ids else "Unknown"
+                        )
+                
+                st.success(f"✅ Successfully uploaded {len(files)} file(s)!")
+                
+            except Exception as e:
+                st.error(f"Upload failed: {str(e)}")
 
-else:
-    st.info("👆 Click 'Fetch Courses' to load ur courses no cap 💯")
+st.markdown("---")
+st.subheader("📚 Available Materials")
+
+try:
+    # Get all materials (not filtered by section anymore)
+    materials = get_materials_by_section(None, None)
+    
+    if not materials:
+        st.info("No materials uploaded yet. Be the first to share! 🚀")
+    else:
+        # Group materials by course code
+        materials_by_course = {}
+        for material in materials:
+            course_code = material.get("course_code", "Unknown")
+            if course_code not in materials_by_course:
+                materials_by_course[course_code] = []
+            materials_by_course[course_code].append(material)
+        
+        # Display materials organized by course
+        for course_code in sorted(materials_by_course.keys()):
+            course_materials = materials_by_course[course_code]
+            
+            # Get course title from first material entry
+            course_title = course_materials[0].get("course_title", course_code)
+            
+            with st.expander(f"📘 {course_code} - {course_title}", expanded=False):
+                # Sort by upload date
+                course_materials = sorted(course_materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
+                
+                for i, material in enumerate(course_materials):
+                    col1, col2 = st.columns([4, 1])
+                    
+                    with col1:
+                        filename = material.get("filename", "file")
+                        uploaded_at = material.get("uploaded_at", "Unknown date")
+                        uploaded_by = material.get("uploaded_by", "Unknown user")
+                        file_url = material.get("file_url")
+                        
+                        st.markdown(f"**📄 {filename}**")
+                        st.caption(f"Uploaded: {uploaded_at}")
+                        
+                        if file_url:
+                            st.link_button("View File", file_url, type="primary", use_container_width=True)
+                    
+                    with col2:
+                        # Show delete button (only for uploader)
+                        if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
+                            try:
+                                storage_path = f"course_materials/{course_code}/{filename}"
+                                delete_from_github(storage_path)
+                                delete_material(course_code, filename)
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Failed to delete: {str(e)}")
+                    
+                    st.divider()
+
+except Exception as e:
+    st.error(f"Error loading materials: {str(e)}")
+
