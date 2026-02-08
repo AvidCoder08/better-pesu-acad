@@ -31,18 +31,7 @@ else:
         branch = 'N/A'
         semester = 'N/A'
 
-st.title(f"Dashboard - Hey, {name.split()[0]}! 👋")
-
-# Display user info cards
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.info(f"**Program:** {program}")
-with col2:
-    st.info(f"**Branch:** {branch}")
-with col3:
-    st.info(f"**Semester:** {semester}")
-
-st.divider()
+st.title("Dashboard")
 
 # Initialize session state for tasks
 if 'tasks' not in st.session_state:
