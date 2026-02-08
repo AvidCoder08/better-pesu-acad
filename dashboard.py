@@ -1,37 +1,19 @@
 import streamlit as st
+from datetime import datetime
 from session_utils import restore_session_from_cookie
 
 restore_session_from_cookie()
 
-# Get profile data
-profile = st.session_state.profile
-
-# Handle both dict and object profiles
-if profile is None:
-    name = 'User'
-    program = 'N/A'
-    branch = 'N/A'
-    semester = 'N/A'
-elif isinstance(profile, dict):
-    personal = profile.get('personal', {})
-    name = personal.get('name', 'User') if isinstance(personal, dict) else personal.get('name', 'User')
-    program = personal.get('program', 'N/A') if isinstance(personal, dict) else personal.get('program', 'N/A')
-    branch = personal.get('branch', 'N/A') if isinstance(personal, dict) else personal.get('branch', 'N/A')
-    semester = personal.get('semester', 'N/A') if isinstance(personal, dict) else personal.get('semester', 'N/A')
+# Get time-based greeting
+current_hour = datetime.now().hour
+if current_hour < 12:
+    greeting = "Good morning"
+elif current_hour < 18:
+    greeting = "Good afternoon"
 else:
-    personal = profile.personal if hasattr(profile, 'personal') else None
-    if personal:
-        name = personal.name if hasattr(personal, 'name') else 'User'
-        program = personal.program if hasattr(personal, 'program') else 'N/A'
-        branch = personal.branch if hasattr(personal, 'branch') else 'N/A'
-        semester = personal.semester if hasattr(personal, 'semester') else 'N/A'
-    else:
-        name = 'User'
-        program = 'N/A'
-        branch = 'N/A'
-        semester = 'N/A'
+    greeting = "Good evening"
 
-st.title("Dashboard")
+st.title(greeting)
 
 # Initialize session state for tasks
 if 'tasks' not in st.session_state:
