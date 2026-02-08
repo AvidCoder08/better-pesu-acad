@@ -4,8 +4,11 @@ from session_utils import restore_session_from_cookie
 
 restore_session_from_cookie()
 
+# Get local system time with timezone awareness
+current_time = datetime.now().astimezone()
+
 # Get time-based greeting
-current_hour = datetime.now().hour
+current_hour = current_time.hour
 if current_hour < 12:
     greeting = "Good morning"
 elif current_hour < 18:
