@@ -1,15 +1,20 @@
 import streamlit as st
 from firebase_utils import check_user_in_friends_list
+from session_utils import restore_session_from_cookie, save_session_cookie, clear_session_cookie
 
 st.set_page_config(page_title="Login - Better PESU", page_icon="🔐", layout="centered")
 
 st.title("🔐 Better PESU Acad")
 st.caption("Friends Only Access")
 
+# Restore session from cookie on startup
+restore_session_from_cookie()
+
 # Check if already logged in
 if st.session_state.get('authenticated', False):
     st.success(f"✅ Logged in as {st.session_state.get('user_email')}")
     if st.button("Logout", type="secondary"):
+        clear_session_cookie()
         st.session_state.authenticated = False
         st.session_state.user_email = None
         st.rerun()
@@ -31,6 +36,8 @@ if submitted:
         if check_user_in_friends_list(email):
             st.session_state.authenticated = True
             st.session_state.user_email = email
+            # Save session for persistent login
+            save_session_cookie(email, email, None)
             st.success("✅ Welcome! You're now logged in.")
             st.balloons()
             st.rerun()

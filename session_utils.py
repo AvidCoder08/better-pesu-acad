@@ -113,8 +113,8 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 def restore_session_from_cookie():
-    """Restore session from cookie + server-side file."""
-    if st.session_state.get("logged_in"):
+    """Restore Firebase session from cookie + server-side file."""
+    if st.session_state.get("authenticated"):
         return
 
     if st.session_state.get("restore_attempted"):
@@ -148,7 +148,8 @@ def restore_session_from_cookie():
 
         decrypted_data = decrypt_data(encrypted_data)
         if not decrypted_data:
-            os.remove(session_file)
+            if os.path.exists(session_file):
+                os.remove(session_file)
             return
 
         session_data = json.loads(decrypted_data)
@@ -156,14 +157,18 @@ def restore_session_from_cookie():
         # Check expiry (30 days)
         stored_time = session_data.get("timestamp", 0)
         if time.time() - stored_time > (30 * 24 * 60 * 60):
-            os.remove(session_file)
+            if os.path.exists(session_file):
+                os.remove(session_file)
             return
 
-        # Restore session to Streamlit state
-        st.session_state.logged_in = True
-        st.session_state.profile = session_data.get("profile")
-        st.session_state.pesu_username = session_data.get("username")
-        st.session_state.pesu_password = session_data.get("password")
+        # Restore Firebase session to Streamlit state
+        st.session_state.authenticated = True
+        st.session_state.user_email = session_data.get("user_email")
+        st.session_state.user_id = session_data.get("user_id")
+        st.session_state.id_token = session_data.get("id_token")
+        st.session_state.user_name = session_data.get("user_name")
+        st.session_state.user_branch = session_data.get("user_branch")
+        st.session_state.current_page = "dashboard"
         
     except Exception as e:
         # Clean up on any error
@@ -175,26 +180,26 @@ def restore_session_from_cookie():
 
 
 
-def save_session_cookie(username: str, password: str, profile):
-    """Save encrypted session to server file + store session ID in cookie."""
+def save_session_cookie(user_email: str, user_id: str, id_token: str, user_name: str = None, user_branch: str = None):
+    """Save encrypted Firebase session to server file + store session ID in cookie.
+    
+    Args:
+        user_email: User's email address
+        user_id: Firebase user ID
+        id_token: Firebase ID token
+        user_name: User's name (optional)
+        user_branch: User's branch (optional)
+    """
     try:
-        # Generate unique session ID (small, won't cause 414)
+        # Generate unique session ID
         session_id = str(uuid.uuid4())
 
-        # Prepare session data
-        if hasattr(profile, "model_dump"):
-            profile_dict = profile.model_dump()
-        elif hasattr(profile, "dict"):
-            profile_dict = profile.dict()
-        elif isinstance(profile, dict):
-            profile_dict = profile
-        else:
-            profile_dict = profile.__dict__ if hasattr(profile, "__dict__") else {}
-
         session_data = {
-            "username": username,
-            "password": password,
-            "profile": profile_dict,
+            "user_email": user_email,
+            "user_id": user_id,
+            "id_token": id_token,
+            "user_name": user_name,
+            "user_branch": user_branch,
             "timestamp": time.time(),
         }
 
@@ -202,8 +207,7 @@ def save_session_cookie(username: str, password: str, profile):
         json_data = json.dumps(session_data)
         encrypted_data = encrypt_data(json_data)
         if not encrypted_data:
-            st.error("Failed to encrypt session")
-            return
+            return False
 
         # Create sessions directory
         os.makedirs(SESSION_DIR, exist_ok=True)
@@ -213,12 +217,14 @@ def save_session_cookie(username: str, password: str, profile):
         with open(session_file, 'w') as f:
             f.write(encrypted_data)
         
-        # Store only the session ID in cookie (36 chars, no 414 error)
+        # Store only the session ID in cookie
         cookie_manager = get_cookie_manager()
         cookie_manager.set(COOKIE_NAME, session_id, max_age=30 * 24 * 60 * 60)
         
+        return True
+        
     except Exception as e:
-        st.error(f"Error saving session: {str(e)}")
+        return False
 
 
 def clear_session_cookie():

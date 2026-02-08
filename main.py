@@ -6,8 +6,11 @@ import requests
 from firebase_auth import sign_up, sign_in, send_password_reset, confirm_password_reset
 from github_utils import upload_to_github, delete_from_github, save_user_profile, get_user_profile
 from materials_utils import add_material, get_materials_by_section, delete_material
+from session_utils import restore_session_from_cookie, save_session_cookie, clear_session_cookie
+from streamlit_geolocation import streamlit_geolocation
 import os
 import extra_streamlit_components as stx
+
 
 load_dotenv()
 
@@ -33,6 +36,10 @@ if 'current_page' not in st.session_state:
     st.session_state.current_page = 'login'
 if 'tasks' not in st.session_state:
     st.session_state.tasks = []
+
+# Restore session from cookie on app startup
+restore_session_from_cookie()
+
 
 logo_svg = """
 <svg width="450" height="50">
@@ -97,6 +104,14 @@ def show_login():
                         st.session_state.user_name = profile.get("name") if profile else None
                         st.session_state.user_branch = profile.get("branch") if profile else None
                         st.session_state.current_page = 'dashboard'
+                        # Save session for persistent login
+                        save_session_cookie(
+                            result["email"],
+                            result["user_id"],
+                            result["id_token"],
+                            profile.get("name") if profile else None,
+                            profile.get("branch") if profile else None
+                        )
                         st.success("✅ Login successful!")
                         time.sleep(1)
                         st.rerun()
@@ -137,6 +152,14 @@ def show_login():
                         st.session_state.user_id = result["user_id"]
                         st.session_state.id_token = result["id_token"]
                         st.session_state.current_page = 'dashboard'
+                        # Save session for persistent login
+                        save_session_cookie(
+                            result["email"],
+                            result["user_id"],
+                            result["id_token"],
+                            name,
+                            branch
+                        )
                         st.success("✅ Account created and logged in!")
                         time.sleep(1)
                         st.rerun()
@@ -245,16 +268,30 @@ def show_login():
 
 # ==================== DASHBOARD PAGE ====================
 def get_location():
-    """Get user location based on IP address."""
+    """Get user location using GPS coordinates from browser."""
     try:
-        response = requests.get('https://ipapi.co/json/', timeout=5)
-        if response.status_code == 200:
-            data = response.json()
+        location = streamlit_geolocation()
+        
+        if location and location.get('latitude') and location.get('longitude'):
+            lat = location['latitude']
+            lon = location['longitude']
+            
+            # Get city name from reverse geocoding
+            try:
+                geo_url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
+                geo_response = requests.get(geo_url, timeout=5)
+                if geo_response.status_code == 200:
+                    geo_data = geo_response.json()
+                    city = geo_data.get('address', {}).get('city') or geo_data.get('address', {}).get('town') or "Your Location"
+                else:
+                    city = "Your Location"
+            except:
+                city = "Your Location"
+            
             return {
-                'city': data.get('city', 'Unknown'),
-                'country': data.get('country_name', 'Unknown'),
-                'lat': data.get('latitude'),
-                'lon': data.get('longitude')
+                'city': city,
+                'lat': lat,
+                'lon': lon
             }
     except:
         pass
@@ -551,6 +588,8 @@ def show_settings():
     st.subheader("🔒 Account")
     
     if st.button("🚪 Logout", type="secondary", use_container_width=True):
+        # Clear session cookie for persistent login
+        clear_session_cookie()
         st.session_state.authenticated = False
         st.session_state.user_email = None
         st.session_state.user_name = None
