@@ -1,8 +1,6 @@
 .session_data.json
 .session_key
 .sessions/
-.env
-.env.*
 !.env.example
 .streamlit/secrets.toml
 firebase-credentials.json
