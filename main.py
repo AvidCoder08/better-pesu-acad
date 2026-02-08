@@ -7,10 +7,14 @@ from firebase_auth import sign_up, sign_in, send_password_reset, confirm_passwor
 from github_utils import upload_to_github, delete_from_github, save_user_profile, get_user_profile
 from materials_utils import add_material, get_materials_by_section, delete_material
 import os
+import extra_streamlit_components as stx
 
 load_dotenv()
 
 st.set_page_config(page_title="Hail Mary", page_icon=":school:", layout="wide")
+
+# Initialize cookie manager
+cookie_manager = stx.CookieManager()
 
 # Initialize session state
 if 'authenticated' not in st.session_state:
