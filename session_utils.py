@@ -1,16 +1,20 @@
 import json
 import streamlit as st
+import streamlit.components.v1 as components
 import hashlib
 import platform
 import socket
 import os
 import base64
+import time
+import uuid
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-COOKIE_NAME = "pesu_session"
+COOKIE_NAME = "pesu_session_id"
 ENCRYPTION_KEY_FILE = ".session_key"
+SESSION_DIR = ".sessions"
 
 
 def get_device_fingerprint() -> str:
@@ -84,115 +88,172 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 
-def restore_session_from_cookie():
-    """Restore session from URL query parameters (client-side only).
-    
-    Session data is stored in the URL, making it device-specific and 
-    impossible for other users to access. Each user has their own URL.
+def _get_cookie(cookie_name: str):
+    """Get a cookie using HTML/JS component."""
+    html_code = f"""
+    <script>
+    function getCookie(name) {{
+        const value = `; ${{document.cookie}}`;
+        const parts = value.split(`; ${{name}}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }}
+    const cookie_value = getCookie("{cookie_name}");
+    window.parent.postMessage({{cookie: cookie_value}}, "*");
+    </script>
     """
-    # Already logged in?
+    result = components.html(html_code, height=0)
+    return result
+
+
+def _set_cookie(cookie_name: str, value: str, days: int = 30):
+    """Set a cookie using HTML/JS component."""
+    html_code = f"""
+    <script>
+    const expires = new Date(Date.now() + {days * 24 * 60 * 60 * 1000}).toUTCString();
+    document.cookie = "{cookie_name}=" + "{value}" + "; expires=" + expires + "; path=/; SameSite=Lax";
+    </script>
+    """
+    components.html(html_code, height=0)
+
+
+def _delete_cookie(cookie_name: str):
+    """Delete a cookie using HTML/JS component."""
+    html_code = f"""
+    <script>
+    document.cookie = "{cookie_name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    </script>
+    """
+    components.html(html_code, height=0)
+
+
+def restore_session_from_cookie():
+    """Restore session from browser cookie + server-side session file."""
     if st.session_state.get("logged_in"):
         return
-    
-    # Already attempted?
+
     if st.session_state.get("restore_attempted"):
         return
-    
+
     st.session_state.restore_attempted = True
+
+    # Get session ID from cookie
+    session_id = _get_cookie(COOKIE_NAME)
+    if not session_id or not isinstance(session_id, dict):
+        return
     
-    # Check if session data is in URL query params
-    query_params = st.query_params
+    session_id = session_id.get("cookie")
+    if not session_id:
+        return
+
+    # Create sessions directory if it doesn't exist
+    os.makedirs(SESSION_DIR, exist_ok=True)
     
-    if 'pesu_session' in query_params:
-        try:
-            encrypted_data = query_params['pesu_session']
-            current_device = get_device_fingerprint()
-            
-            # Decrypt
-            decrypted_data = decrypt_data(encrypted_data)
-            if not decrypted_data:
-                return
-            
-            session_data = json.loads(decrypted_data)
-            
-            # Verify device fingerprint matches
-            if session_data.get("device_fingerprint") != current_device:
-                # Device mismatch - don't restore
-                return
-            
-            # Verify timestamp is recent (max 30 days)
-            import time
-            stored_time = session_data.get("timestamp", 0)
-            current_time = time.time()
-            if current_time - stored_time > (30 * 24 * 60 * 60):
-                # Session expired
-                return
-            
-            # Restore session!
-            st.session_state.logged_in = True
-            st.session_state.profile = session_data.get("profile")
-            st.session_state.pesu_username = session_data.get("username")
-            st.session_state.pesu_password = session_data.get("password")
-            
-        except Exception:
-            # Silently fail if decryption or parsing fails
-            pass
+    # Load session data from file
+    session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
+    if not os.path.exists(session_file):
+        return
+
+    try:
+        with open(session_file, 'r') as f:
+            encrypted_data = f.read()
+
+        current_device = get_device_fingerprint()
+        decrypted_data = decrypt_data(encrypted_data)
+        if not decrypted_data:
+            return
+
+        session_data = json.loads(decrypted_data)
+        
+        # Verify device fingerprint
+        if session_data.get("device_fingerprint") != current_device:
+            # Session from different device - delete it
+            os.remove(session_file)
+            return
+
+        # Check expiry (30 days)
+        stored_time = session_data.get("timestamp", 0)
+        if time.time() - stored_time > (30 * 24 * 60 * 60):
+            os.remove(session_file)
+            return
+
+        # Restore session
+        st.session_state.logged_in = True
+        st.session_state.profile = session_data.get("profile")
+        st.session_state.pesu_username = session_data.get("username")
+        st.session_state.pesu_password = session_data.get("password")
+    except Exception:
+        # Clean up bad session file
+        if os.path.exists(session_file):
+            os.remove(session_file)
 
 
 
 def save_session_cookie(username: str, password: str, profile):
-    """Save encrypted session to URL query parameters (client-side only).
-    
-    Session is stored in the URL, making it completely device-specific.
-    Each browser/device gets its own unique URL with session data.
-    No server-side storage = no data leaking between devices.
-    """
+    """Save encrypted session to server file + set cookie with session ID."""
     try:
-        import time
         current_device = get_device_fingerprint()
-        
-        # Convert profile to dict
-        if hasattr(profile, 'model_dump'):
+
+        # Generate unique session ID
+        session_id = str(uuid.uuid4())
+
+        # Prepare session data
+        if hasattr(profile, "model_dump"):
             profile_dict = profile.model_dump()
-        elif hasattr(profile, 'dict'):
+        elif hasattr(profile, "dict"):
             profile_dict = profile.dict()
         elif isinstance(profile, dict):
             profile_dict = profile
         else:
-            profile_dict = profile.__dict__ if hasattr(profile, '__dict__') else {}
-        
+            profile_dict = profile.__dict__ if hasattr(profile, "__dict__") else {}
+
         session_data = {
-            'username': username,
-            'password': password,
-            'profile': profile_dict,
-            'device_fingerprint': current_device,
-            'timestamp': time.time(),  # For 30-day expiry check
+            "username": username,
+            "password": password,
+            "profile": profile_dict,
+            "device_fingerprint": current_device,
+            "timestamp": time.time(),
         }
-        
-        # Encrypt the entire session
+
+        # Encrypt and save to file
         json_data = json.dumps(session_data)
         encrypted_data = encrypt_data(json_data)
-        
-        if encrypted_data:
-            # Store in URL query parameter (client-side only)
-            st.query_params['pesu_session'] = encrypted_data
-            
-            st.success("✅ Login successful! Your session is stored securely in your browser.")
-        else:
+        if not encrypted_data:
             st.error("Failed to encrypt session")
+            return
+
+        # Create sessions directory
+        os.makedirs(SESSION_DIR, exist_ok=True)
+        
+        # Save to file
+        session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
+        with open(session_file, 'w') as f:
+            f.write(encrypted_data)
+
+        # Set cookie with session ID (small string, won't cause 414)
+        _set_cookie(COOKIE_NAME, session_id, days=30)
+        
     except Exception as e:
         st.error(f"Error saving session: {str(e)}")
 
 
 def clear_session_cookie():
-    """Clear session from URL query parameters."""
+    """Clear session cookie and delete session file."""
     try:
-        # Remove from query params
-        if 'pesu_session' in st.query_params:
-            del st.query_params['pesu_session']
+        # Get session ID from cookie first
+        session_id = _get_cookie(COOKIE_NAME)
+        if session_id and isinstance(session_id, dict):
+            session_id = session_id.get("cookie")
+            if session_id:
+                # Delete session file
+                session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
+                if os.path.exists(session_file):
+                    os.remove(session_file)
         
-        # Clear flags
-        if 'restore_attempted' in st.session_state:
+        # Delete cookie
+        _delete_cookie(COOKIE_NAME)
+        
+        if "restore_attempted" in st.session_state:
             st.session_state.restore_attempted = False
     except Exception:
         pass

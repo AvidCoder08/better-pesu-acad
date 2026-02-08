@@ -1,5 +1,6 @@
 .session_data.json
 .session_key
+.sessions/
 .env
 .env.*
 !.env.example
