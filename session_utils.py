@@ -1,18 +1,15 @@
 import json
 import streamlit as st
-import streamlit.components.v1 as components
 import hashlib
 import platform
 import socket
 import os
 import base64
 import time
-import uuid
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-COOKIE_NAME = "pesu_session_id"
 ENCRYPTION_KEY_FILE = ".session_key"
 SESSION_DIR = ".sessions"
 
@@ -20,8 +17,7 @@ SESSION_DIR = ".sessions"
 def get_device_fingerprint() -> str:
     """Generate a device fingerprint based on hardware/browser characteristics.
     
-    This prevents one user's session from being restored on a different device,
-    similar to CineBase's security approach.
+    This prevents one user's session from being restored on a different device.
     """
     try:
         machine_name = socket.gethostname()
@@ -31,8 +27,33 @@ def get_device_fingerprint() -> str:
         device_id = hashlib.sha256(hw_string.encode()).hexdigest()[:16]
         return device_id
     except Exception:
-        # Fallback if device fingerprinting fails
         return "unknown_device"
+
+
+def get_browser_id() -> str:
+    """Get a unique ID for this browser/user session.
+    
+    Uses Streamlit's session ID which is unique per browser connection.
+    This ensures each user on Streamlit Cloud gets their own session file.
+    """
+    try:
+        # Try to get Streamlit's unique session ID
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        ctx = get_script_run_ctx()
+        if ctx and ctx.session_id:
+            # Use Streamlit's session ID - unique per browser
+            return ctx.session_id
+    except:
+        pass
+    
+    # Fallback: generate ID in session_state
+    if "persistent_browser_id" not in st.session_state:
+        # Generate unique ID combining timestamp and random
+        import random
+        random_part = ''.join([str(random.randint(0, 9)) for _ in range(12)])
+        st.session_state.persistent_browser_id = f"{int(time.time())}_{random_part}"
+    
+    return st.session_state.persistent_browser_id
 
 
 def get_encryption_key() -> bytes:
@@ -88,47 +109,8 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 
-def _get_cookie(cookie_name: str):
-    """Get a cookie using HTML/JS component."""
-    html_code = f"""
-    <script>
-    function getCookie(name) {{
-        const value = `; ${{document.cookie}}`;
-        const parts = value.split(`; ${{name}}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-        return null;
-    }}
-    const cookie_value = getCookie("{cookie_name}");
-    window.parent.postMessage({{cookie: cookie_value}}, "*");
-    </script>
-    """
-    result = components.html(html_code, height=0)
-    return result
-
-
-def _set_cookie(cookie_name: str, value: str, days: int = 30):
-    """Set a cookie using HTML/JS component."""
-    html_code = f"""
-    <script>
-    const expires = new Date(Date.now() + {days * 24 * 60 * 60 * 1000}).toUTCString();
-    document.cookie = "{cookie_name}=" + "{value}" + "; expires=" + expires + "; path=/; SameSite=Lax";
-    </script>
-    """
-    components.html(html_code, height=0)
-
-
-def _delete_cookie(cookie_name: str):
-    """Delete a cookie using HTML/JS component."""
-    html_code = f"""
-    <script>
-    document.cookie = "{cookie_name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    </script>
-    """
-    components.html(html_code, height=0)
-
-
 def restore_session_from_cookie():
-    """Restore session from browser cookie + server-side session file."""
+    """Restore session from server-side storage (no cookies/URLs needed)."""
     if st.session_state.get("logged_in"):
         return
 
@@ -137,65 +119,55 @@ def restore_session_from_cookie():
 
     st.session_state.restore_attempted = True
 
-    # Get session ID from cookie
-    session_id = _get_cookie(COOKIE_NAME)
-    if not session_id or not isinstance(session_id, dict):
-        return
-    
-    session_id = session_id.get("cookie")
-    if not session_id:
-        return
-
-    # Create sessions directory if it doesn't exist
-    os.makedirs(SESSION_DIR, exist_ok=True)
-    
-    # Load session data from file
-    session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
-    if not os.path.exists(session_file):
-        return
-
     try:
+        browser_id = get_browser_id()
+        device_fp = get_device_fingerprint()
+        
+        # Create sessions directory if needed
+        os.makedirs(SESSION_DIR, exist_ok=True)
+        
+        # Look for session file for this browser
+        session_file = os.path.join(SESSION_DIR, f"{hashlib.md5(browser_id.encode()).hexdigest()}.json")
+        if not os.path.exists(session_file):
+            return
+
+        # Load and decrypt session data
         with open(session_file, 'r') as f:
             encrypted_data = f.read()
 
-        current_device = get_device_fingerprint()
         decrypted_data = decrypt_data(encrypted_data)
         if not decrypted_data:
+            os.remove(session_file)
             return
 
         session_data = json.loads(decrypted_data)
         
-        # Verify device fingerprint
-        if session_data.get("device_fingerprint") != current_device:
-            # Session from different device - delete it
-            os.remove(session_file)
-            return
-
         # Check expiry (30 days)
         stored_time = session_data.get("timestamp", 0)
         if time.time() - stored_time > (30 * 24 * 60 * 60):
             os.remove(session_file)
             return
 
-        # Restore session
+        # Restore session to Streamlit state
         st.session_state.logged_in = True
         st.session_state.profile = session_data.get("profile")
         st.session_state.pesu_username = session_data.get("username")
         st.session_state.pesu_password = session_data.get("password")
-    except Exception:
-        # Clean up bad session file
-        if os.path.exists(session_file):
-            os.remove(session_file)
+        
+    except Exception as e:
+        # Clean up on any error
+        try:
+            if 'session_file' in locals() and os.path.exists(session_file):
+                os.remove(session_file)
+        except:
+            pass
 
 
 
 def save_session_cookie(username: str, password: str, profile):
-    """Save encrypted session to server file + set cookie with session ID."""
+    """Save encrypted session to server-side storage (no cookies/URLs needed)."""
     try:
-        current_device = get_device_fingerprint()
-
-        # Generate unique session ID
-        session_id = str(uuid.uuid4())
+        browser_id = get_browser_id()
 
         # Prepare session data
         if hasattr(profile, "model_dump"):
@@ -211,7 +183,6 @@ def save_session_cookie(username: str, password: str, profile):
             "username": username,
             "password": password,
             "profile": profile_dict,
-            "device_fingerprint": current_device,
             "timestamp": time.time(),
         }
 
@@ -225,36 +196,27 @@ def save_session_cookie(username: str, password: str, profile):
         # Create sessions directory
         os.makedirs(SESSION_DIR, exist_ok=True)
         
-        # Save to file
-        session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
+        # Save to browser-specific file (one session per browser)
+        session_file = os.path.join(SESSION_DIR, f"{hashlib.md5(browser_id.encode()).hexdigest()}.json")
         with open(session_file, 'w') as f:
             f.write(encrypted_data)
-
-        # Set cookie with session ID (small string, won't cause 414)
-        _set_cookie(COOKIE_NAME, session_id, days=30)
         
     except Exception as e:
         st.error(f"Error saving session: {str(e)}")
 
 
 def clear_session_cookie():
-    """Clear session cookie and delete session file."""
+    """Clear session from server-side storage."""
     try:
-        # Get session ID from cookie first
-        session_id = _get_cookie(COOKIE_NAME)
-        if session_id and isinstance(session_id, dict):
-            session_id = session_id.get("cookie")
-            if session_id:
-                # Delete session file
-                session_file = os.path.join(SESSION_DIR, f"{session_id}.json")
-                if os.path.exists(session_file):
-                    os.remove(session_file)
+        browser_id = get_browser_id()
+        session_file = os.path.join(SESSION_DIR, f"{hashlib.md5(browser_id.encode()).hexdigest()}.json")
         
-        # Delete cookie
-        _delete_cookie(COOKIE_NAME)
+        if os.path.exists(session_file):
+            os.remove(session_file)
         
         if "restore_attempted" in st.session_state:
             st.session_state.restore_attempted = False
+            
     except Exception:
         pass
 
