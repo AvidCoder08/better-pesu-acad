@@ -156,3 +156,4 @@ def remove_friend_email(user_email):
     except Exception as e:
         st.error(f"Error removing friend: {str(e)}")
         return False
+

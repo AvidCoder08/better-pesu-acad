@@ -178,3 +178,215 @@ def get_github_file_url(file_path):
     """
     config = _get_github_config()
     return f"https://raw.githubusercontent.com/{config['repo']}/{config['branch']}/{file_path}"
+
+
+def save_user_profile(user_id, name, branch, email):
+    """
+    Save user profile to GitHub profiles.json file.
+    
+    Args:
+        user_id: Firebase user ID
+        name: User's full name
+        branch: User's branch (CSE, AIML, etc.)
+        email: User's email
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        import json
+        config = _get_github_config()
+        
+        # Fetch existing profiles.json
+        profiles_file = "profiles.json"
+        url = f"{config['api_base']}/repos/{config['repo']}/contents/{profiles_file}"
+        headers = {
+            "Authorization": f"token {config['token']}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        # Try to get existing file
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            # File exists, decode and parse it
+            file_data = response.json()
+            content_base64 = file_data.get("content", "")
+            sha = file_data.get("sha", "")
+            profiles = json.loads(base64.b64decode(content_base64).decode('utf-8'))
+        else:
+            # File doesn't exist, create new dict
+            profiles = {}
+            sha = None
+        
+        # Update or add profile
+        profiles[user_id] = {
+            "name": name,
+            "branch": branch,
+            "email": email,
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        # Encode to base64
+        content_base64 = base64.b64encode(json.dumps(profiles, indent=2).encode('utf-8')).decode('utf-8')
+        
+        # Prepare payload
+        payload = {
+            "message": f"Update profile for {user_id}",
+            "content": content_base64
+        }
+        
+        if sha:
+            payload["sha"] = sha
+        
+        # Upload to GitHub
+        response = requests.put(url, json=payload, headers=headers)
+        response.raise_for_status()
+        
+        return True
+    except Exception as e:
+        st.error(f"Error saving profile: {str(e)}")
+        return False
+
+
+def get_user_profile(user_id):
+    """
+    Get user profile from GitHub profiles.json file.
+    
+    Args:
+        user_id: Firebase user ID
+    
+    Returns:
+        dict: User profile data or None if not found
+    """
+    try:
+        import json
+        config = _get_github_config()
+        
+        # Fetch profiles.json
+        profiles_file = "profiles.json"
+        url = f"{config['api_base']}/repos/{config['repo']}/contents/{profiles_file}"
+        headers = {
+            "Authorization": f"token {config['token']}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            file_data = response.json()
+            content_base64 = file_data.get("content", "")
+            profiles = json.loads(base64.b64decode(content_base64).decode('utf-8'))
+            
+            return profiles.get(user_id)
+        
+        return None
+    except Exception as e:
+        st.error(f"Error getting profile: {str(e)}")
+        return None
+
+
+def save_user_profile(user_id, name, branch, email):
+    """
+    Save user profile to GitHub profiles.json file.
+    
+    Args:
+        user_id: Firebase user ID
+        name: User's full name
+        branch: User's branch (CSE, AIML, etc.)
+        email: User's email
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        import json
+        config = _get_github_config()
+        
+        # Fetch existing profiles.json
+        profiles_file = "profiles.json"
+        url = f"{config['api_base']}/repos/{config['repo']}/contents/{profiles_file}"
+        headers = {
+            "Authorization": f"token {config['token']}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        # Try to get existing file
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            # File exists, decode and parse it
+            file_data = response.json()
+            content_base64 = file_data.get("content", "")
+            sha = file_data.get("sha", "")
+            profiles = json.loads(base64.b64decode(content_base64).decode('utf-8'))
+        else:
+            # File doesn't exist, create new dict
+            profiles = {}
+            sha = None
+        
+        # Update or add profile
+        profiles[user_id] = {
+            "name": name,
+            "branch": branch,
+            "email": email,
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        # Encode to base64
+        content_base64 = base64.b64encode(json.dumps(profiles, indent=2).encode('utf-8')).decode('utf-8')
+        
+        # Prepare payload
+        payload = {
+            "message": f"Update profile for {user_id}",
+            "content": content_base64
+        }
+        
+        if sha:
+            payload["sha"] = sha
+        
+        # Upload to GitHub
+        response = requests.put(url, json=payload, headers=headers)
+        response.raise_for_status()
+        
+        return True
+    except Exception as e:
+        st.error(f"Error saving profile: {str(e)}")
+        return False
+
+
+def get_user_profile(user_id):
+    """
+    Get user profile from GitHub profiles.json file.
+    
+    Args:
+        user_id: Firebase user ID
+    
+    Returns:
+        dict: User profile data or None if not found
+    """
+    try:
+        import json
+        config = _get_github_config()
+        
+        # Fetch profiles.json
+        profiles_file = "profiles.json"
+        url = f"{config['api_base']}/repos/{config['repo']}/contents/{profiles_file}"
+        headers = {
+            "Authorization": f"token {config['token']}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            file_data = response.json()
+            content_base64 = file_data.get("content", "")
+            profiles = json.loads(base64.b64decode(content_base64).decode('utf-8'))
+            
+            return profiles.get(user_id)
+        
+        return None
+    except Exception as e:
+        st.error(f"Error getting profile: {str(e)}")
+        return None
