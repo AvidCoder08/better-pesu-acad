@@ -461,31 +461,55 @@ def show_courses():
                     with st.expander(f"📘 {course_code} - {course_title}", expanded=False):
                         course_materials = sorted(course_materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
                         
-                        for i, material in enumerate(course_materials):
-                            col1, col2 = st.columns([4, 1])
+                        # Group by category
+                        materials_by_category = {}
+                        for material in course_materials:
+                            category = material.get("section", "Other")
+                            if category not in materials_by_category:
+                                materials_by_category[category] = []
+                            materials_by_category[category].append(material)
+                        
+                        # Display by category
+                        category_icons = {
+                            "Textbook": "📚",
+                            "Notes": "📝",
+                            "Slides": "🖼️",
+                            "Lab": "🔬",
+                            "Other": "📁"
+                        }
+                        
+                        for category in sorted(materials_by_category.keys()):
+                            cat_materials = materials_by_category[category]
+                            icon = category_icons.get(category, "📁")
+                            st.markdown(f"**{icon} {category}**")
                             
-                            with col1:
-                                filename = material.get("filename", "file")
-                                uploaded_at = material.get("uploaded_at", "Unknown date")
-                                file_url = material.get("file_url")
+                            for i, material in enumerate(cat_materials):
+                                col1, col2 = st.columns([4, 1])
                                 
-                                st.markdown(f"**📄 {filename}**")
-                                st.caption(f"Uploaded: {uploaded_at}")
+                                with col1:
+                                    filename = material.get("filename", "file")
+                                    uploaded_at = material.get("uploaded_at", "Unknown date")
+                                    file_url = material.get("file_url")
+                                    
+                                    st.markdown(f"📄 {filename}")
+                                    st.caption(f"Uploaded: {uploaded_at}")
+                                    
+                                    if file_url:
+                                        st.link_button("View File", file_url, type="primary", use_container_width=True)
                                 
-                                if file_url:
-                                    st.link_button("View File", file_url, type="primary", use_container_width=True)
+                                with col2:
+                                    if st.button("🗑️", key=f"del_{course_code}_{category}_{i}", help="Delete this material"):
+                                        try:
+                                            storage_path = f"course_materials/{course_code}/{category}/{filename}"
+                                            delete_from_github(storage_path)
+                                            delete_material(course_code, filename)
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Failed to delete: {str(e)}")
+                                
+                                st.divider()
                             
-                            with col2:
-                                if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
-                                    try:
-                                        storage_path = f"course_materials/{course_code}/{filename}"
-                                        delete_from_github(storage_path)
-                                        delete_material(course_code, filename)
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Failed to delete: {str(e)}")
-                            
-                            st.divider()
+                            st.markdown("")
         
         except Exception as e:
             st.error(f"Error loading materials: {str(e)}")
@@ -494,49 +518,67 @@ def show_courses():
         st.subheader("📤 Upload Materials")
         st.caption("Upload course materials to share with others")
         
+        # 2nd Semester subjects
+        subjects = ["Chemistry", "EPD", "EMS", "Math 2", "C Programming", "Constitution"]
+        categories = ["Textbook", "Notes", "Slides", "Lab", "Other"]
+        
         with st.form("upload_materials", clear_on_submit=True):
             col1, col2 = st.columns(2)
             
             with col1:
-                course_code = st.text_input("Course Code", placeholder="UE22CS202", help="e.g., UE22CS202", key="course_code_main")
+                subject = st.selectbox(
+                    "Subject",
+                    options=subjects,
+                    help="Select the subject",
+                    key="subject_main"
+                )
             
             with col2:
-                course_title = st.text_input("Course Title", placeholder="Data Structures", help="e.g., Data Structures", key="course_title_main")
+                category = st.selectbox(
+                    "Category",
+                    options=categories,
+                    help="Select material type",
+                    key="category_main"
+                )
             
             files = st.file_uploader("Upload files", accept_multiple_files=True, help="Select one or more files to upload", key="files_main")
             
             submit = st.form_submit_button("Upload", type="primary", use_container_width=True)
 
             if submit:
-                if not course_code.strip():
-                    st.error("Course code is required! 📝")
-                elif not course_title.strip():
-                    st.error("Course title is required! 📝")
+                if not subject:
+                    st.error("Subject is required! 📝")
                 elif not files:
                     st.error("Please select at least one file to upload! 📁")
                 else:
                     try:
+                        # Generate course code and title from subject
+                        course_code = f"2ND_SEM_{subject.upper().replace(' ', '_')}"
+                        course_title = f"2nd Semester - {subject}"
+                        
                         with st.spinner(f"Uploading {len(files)} file(s)..."):
                             for uploaded_file in files:
-                                storage_path = f"course_materials/{course_code.strip()}/{uploaded_file.name}"
+                                storage_path = f"course_materials/{course_code}/{category}/{uploaded_file.name}"
                                 
                                 public_url = upload_to_github(
                                     uploaded_file.getvalue(), 
                                     storage_path, 
-                                    commit_message=f"Upload {course_code.strip()}: {uploaded_file.name}"
+                                    commit_message=f"Upload {course_code} ({category}): {uploaded_file.name}"
                                 )
                                 
                                 add_material(
-                                    course_code=course_code.strip(),
-                                    course_title=course_title.strip(),
+                                    course_code=course_code,
+                                    course_title=course_title,
                                     filename=uploaded_file.name,
                                     file_url=public_url,
-                                    section=None,
+                                    section=category,
                                     uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                     uploaded_by=user_email
                                 )
                         
-                        st.success(f"✅ Successfully uploaded {len(files)} file(s)!")
+                        st.success(f"✅ Successfully uploaded {len(files)} file(s) to {course_title} ({category})!")
+                        time.sleep(1)
+                        st.rerun()
                         
                     except Exception as e:
                         st.error(f"Upload failed: {str(e)}")
