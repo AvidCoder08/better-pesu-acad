@@ -393,6 +393,47 @@ def show_courses():
     except Exception as e:
         st.error(f"Error loading materials: {str(e)}")
 
+# ==================== SETTINGS PAGE ====================
+def show_settings():
+    st.title("⚙️ Settings")
+    st.caption("Manage your profile and account")
+    
+    st.markdown("---")
+    st.subheader("👤 Profile Information")
+    
+    # Display user profile info in a nice format
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Full Name", st.session_state.user_name or "Not set")
+    with col2:
+        st.metric("Branch", st.session_state.user_branch or "Not set")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Email", st.session_state.user_email or "Not set")
+    with col2:
+        st.metric("User ID", st.session_state.user_id[:8] + "..." if st.session_state.user_id else "Not set")
+    
+    st.markdown("---")
+    st.subheader("🔒 Account")
+    
+    if st.button("🚪 Logout", type="secondary", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_email = None
+        st.session_state.user_name = None
+        st.session_state.user_branch = None
+        st.session_state.user_id = None
+        st.session_state.id_token = None
+        st.session_state.current_page = 'login'
+        st.success("✅ Logged out successfully!")
+        time.sleep(1)
+        st.rerun()
+    
+    st.divider()
+    st.caption("Made with ❤️ - Better PESU Acad")
+
 # ==================== MAIN ROUTING ====================
 if not st.session_state.authenticated:
     show_login()
