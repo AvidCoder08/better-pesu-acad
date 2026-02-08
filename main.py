@@ -15,6 +15,10 @@ if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'user_email' not in st.session_state:
     st.session_state.user_email = None
+if 'user_name' not in st.session_state:
+    st.session_state.user_name = None
+if 'user_branch' not in st.session_state:
+    st.session_state.user_branch = None
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 if 'id_token' not in st.session_state:
@@ -83,14 +87,16 @@ def show_login():
             st.subheader("Create a New Account")
             
             with st.form("signup_form"):
+                name = st.text_input("Full Name", placeholder="John Doe", key="signup_name")
                 email = st.text_input("Email", placeholder="you@example.com", key="signup_email")
+                branch = st.selectbox("Branch", ["CSE", "AIML", "ECE", "BT", "EEE", "ME"], key="signup_branch")
                 password = st.text_input("Password", type="password", placeholder="Min 6 characters", key="signup_password")
                 password_confirm = st.text_input("Confirm Password", type="password", placeholder="Confirm password", key="signup_confirm")
                 
                 submitted = st.form_submit_button("Sign Up", type="primary", use_container_width=True)
 
             if submitted:
-                if not email or not password or not password_confirm:
+                if not name or not email or not branch or not password or not password_confirm:
                     st.error("❌ Please fill in all fields")
                 elif password != password_confirm:
                     st.error("❌ Passwords don't match")
@@ -99,6 +105,9 @@ def show_login():
                 else:
                     with st.spinner("Creating account..."):
                         result = sign_up(email, password)
+                        if result["success"]:
+                            st.session_state.user_name = name
+                            st.session_state.user_branch = branch
                     
                     if result["success"]:
                         st.session_state.authenticated = True
