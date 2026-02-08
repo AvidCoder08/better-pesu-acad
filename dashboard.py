@@ -7,18 +7,29 @@ restore_session_from_cookie()
 profile = st.session_state.profile
 
 # Handle both dict and object profiles
-if isinstance(profile, dict):
+if profile is None:
+    name = 'User'
+    program = 'N/A'
+    branch = 'N/A'
+    semester = 'N/A'
+elif isinstance(profile, dict):
     personal = profile.get('personal', {})
-    name = personal.get('name', 'User') if isinstance(personal, dict) else personal.name
-    program = personal.get('program', 'N/A') if isinstance(personal, dict) else personal.program
-    branch = personal.get('branch', 'N/A') if isinstance(personal, dict) else personal.branch
-    semester = personal.get('semester', 'N/A') if isinstance(personal, dict) else personal.semester
+    name = personal.get('name', 'User') if isinstance(personal, dict) else personal.get('name', 'User')
+    program = personal.get('program', 'N/A') if isinstance(personal, dict) else personal.get('program', 'N/A')
+    branch = personal.get('branch', 'N/A') if isinstance(personal, dict) else personal.get('branch', 'N/A')
+    semester = personal.get('semester', 'N/A') if isinstance(personal, dict) else personal.get('semester', 'N/A')
 else:
-    personal = profile.personal
-    name = personal.name
-    program = personal.program
-    branch = personal.branch
-    semester = personal.semester
+    personal = profile.personal if hasattr(profile, 'personal') else None
+    if personal:
+        name = personal.name if hasattr(personal, 'name') else 'User'
+        program = personal.program if hasattr(personal, 'program') else 'N/A'
+        branch = personal.branch if hasattr(personal, 'branch') else 'N/A'
+        semester = personal.semester if hasattr(personal, 'semester') else 'N/A'
+    else:
+        name = 'User'
+        program = 'N/A'
+        branch = 'N/A'
+        semester = 'N/A'
 
 st.title(f"Dashboard - Hey, {name.split()[0]}! 👋")
 

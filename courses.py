@@ -12,11 +12,14 @@ st.caption("Share & manage course materials organized by subject")
 # Get profile info
 profile = st.session_state.profile
 
-if isinstance(profile, dict):
+if profile is None:
+    user_ids = []
+elif isinstance(profile, dict):
     personal = profile.get('personal', {})
     user_ids = personal.get('puid', []) if isinstance(personal, dict) else personal.get('puid', [])
 else:
-    user_ids = profile.personal.puid if hasattr(profile, 'personal') else []
+    personal = profile.personal if hasattr(profile, 'personal') else None
+    user_ids = personal.puid if personal and hasattr(personal, 'puid') else []
 
 st.markdown("---")
 st.subheader("📤 Upload Materials")
