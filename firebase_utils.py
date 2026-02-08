@@ -100,3 +100,59 @@ def delete_from_storage(storage_path):
     blob = bucket.blob(storage_path)
     if blob.exists():
         blob.delete()
+
+
+def check_user_in_friends_list(user_email):
+    """Check if a user email is in the friends list in Firestore."""
+    try:
+        db = get_firestore_client()
+        friends_ref = db.collection("friends").document("allowed_emails")
+        doc = friends_ref.get()
+        
+        if doc.exists:
+            emails = doc.get("emails", [])
+            return user_email in emails
+        return False
+    except Exception as e:
+        st.error(f"Error checking friend status: {str(e)}")
+        return False
+
+
+def add_friend_email(user_email):
+    """Add an email to the friends list in Firestore."""
+    try:
+        db = get_firestore_client()
+        friends_ref = db.collection("friends").document("allowed_emails")
+        doc = friends_ref.get()
+        
+        if doc.exists:
+            emails = doc.get("emails", [])
+            if user_email not in emails:
+                emails.append(user_email)
+                friends_ref.update({"emails": emails})
+        else:
+            friends_ref.set({"emails": [user_email]})
+        
+        return True
+    except Exception as e:
+        st.error(f"Error adding friend: {str(e)}")
+        return False
+
+
+def remove_friend_email(user_email):
+    """Remove an email from the friends list in Firestore."""
+    try:
+        db = get_firestore_client()
+        friends_ref = db.collection("friends").document("allowed_emails")
+        doc = friends_ref.get()
+        
+        if doc.exists:
+            emails = doc.get("emails", [])
+            if user_email in emails:
+                emails.remove(user_email)
+                friends_ref.update({"emails": emails})
+        
+        return True
+    except Exception as e:
+        st.error(f"Error removing friend: {str(e)}")
+        return False
