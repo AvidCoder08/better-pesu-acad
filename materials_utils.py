@@ -84,6 +84,21 @@ def add_material(course_code, course_title, filename, file_url,
     return material_id
 
 
+def update_material_type(course_code, filename, material_type):
+    """
+    Update the material type for an existing material.
+    """
+    materials = get_materials()
+    
+    # Find and update the material
+    for material in materials:
+        if material.get("course_code") == course_code and material.get("filename") == filename:
+            material["material_type"] = material_type
+            break
+    
+    save_materials(materials)
+
+
 def delete_material(course_code, filename):
     """
     Delete a material by course code and filename.
