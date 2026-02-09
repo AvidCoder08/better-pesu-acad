@@ -117,7 +117,9 @@ try:
                         st.caption(f"Uploaded: {uploaded_at}")
                         
                         if file_url:
-                            st.link_button("View File", file_url, type="primary", use_container_width=True)
+                            # Use Google Docs Viewer to display PDF in browser instead of downloading
+                            viewer_url = f"https://docs.google.com/gview?url={file_url}&embedded=true"
+                            st.link_button("View File", viewer_url, type="primary", use_container_width=True)
                     
                     with col2:
                         # Show delete button (only for uploader)
