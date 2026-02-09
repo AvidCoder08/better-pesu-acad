@@ -32,10 +32,8 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 if 'id_token' not in st.session_state:
     st.session_state.id_token = None
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = 'login'
-if 'tasks' not in st.session_state:
-    st.session_state.tasks = []
+if 'custom_location' not in st.session_state:
+    st.session_state.custom_location = None
 
 # Restore session from cookie on app startup
 restore_session_from_cookie()
@@ -268,7 +266,12 @@ def show_login():
 
 # ==================== DASHBOARD PAGE ====================
 def get_location():
-    """Get user location using GPS coordinates from browser."""
+    """Get user location using preference, GPS, or IP-based fallback."""
+    # Check for manually set location preference first
+    if 'custom_location' in st.session_state and st.session_state.custom_location:
+        return st.session_state.custom_location
+    
+    # Try GPS coordinates from browser
     try:
         location = streamlit_geolocation()
         
@@ -291,10 +294,26 @@ def get_location():
             return {
                 'city': city,
                 'lat': lat,
-                'lon': lon
+                'lon': lon,
+                'source': 'gps'
             }
     except:
         pass
+    
+    # Fallback to IP-based geolocation
+    try:
+        ip_response = requests.get('https://ipapi.co/json/', timeout=5)
+        if ip_response.status_code == 200:
+            ip_data = ip_response.json()
+            return {
+                'city': ip_data.get('city', 'Your Location'),
+                'lat': float(ip_data.get('latitude', 0)),
+                'lon': float(ip_data.get('longitude', 0)),
+                'source': 'ip'
+            }
+    except:
+        pass
+    
     return None
 
 def get_weather(lat, lon):
@@ -356,7 +375,7 @@ def show_dashboard():
         st.metric("🕐 Time", time_str)
     
     with col3:
-        # Get weather
+        # Get weather - automatically load location
         if 'location' not in st.session_state:
             st.session_state.location = get_location()
         
@@ -372,9 +391,9 @@ def show_dashboard():
                 desc = weather['description']
                 st.metric(f"🌤️ {location['city']}", f"{temp}°C - {desc}")
             else:
-                st.metric("🌤️ Weather", "Unavailable")
+                st.metric("🌤️ Weather", "Unavailable - Check location settings")
         else:
-            st.metric("🌤️ Weather", "Unavailable")
+            st.metric("🌤️ Weather", "Unavailable - Check location settings")
     
     st.markdown("---")
     
@@ -726,7 +745,56 @@ def show_settings():
                     st.error("❌ Failed to save profile")
     
     st.markdown("---")
-    st.subheader("🔒 Account")
+    st.subheader("� Location Settings")
+    st.caption("Set your location for automatic weather updates")
+    
+    with st.form("location_form"):
+        location_input = st.text_input(
+            "Enter City Name",
+            value=st.session_state.custom_location.get('city') if st.session_state.get('custom_location') else "",
+            placeholder="e.g., Bangalore, New York",
+            help="Enter your city name to get weather updates"
+        )
+        
+        submitted = st.form_submit_button("🔍 Set Location", type="primary", use_container_width=True)
+        
+        if submitted and location_input.strip():
+            try:
+                # Geocode the city name using Nominatim
+                geo_url = f"https://nominatim.openstreetmap.org/search?city={location_input}&format=json&limit=1"
+                geo_response = requests.get(geo_url, timeout=5)
+                if geo_response.status_code == 200 and geo_response.json():
+                    geo_data = geo_response.json()[0]
+                    st.session_state.custom_location = {
+                        'city': location_input.strip(),
+                        'lat': float(geo_data['lat']),
+                        'lon': float(geo_data['lon']),
+                        'source': 'manual'
+                    }
+                    st.session_state.location = st.session_state.custom_location
+                    st.session_state.pop('weather', None)  # Reset weather cache
+                    st.success(f"✅ Location set to {location_input.strip()}!")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(f"❌ City '{location_input}' not found. Please check the spelling.")
+            except Exception as e:
+                st.error(f"❌ Error setting location: {str(e)}")
+    
+    current_location = st.session_state.get('custom_location') or st.session_state.get('location')
+    if current_location:
+        st.info(f"📍 Current: {current_location.get('city', 'Unknown')} (Source: {current_location.get('source', 'unknown').title()})")
+        
+        if st.button("🔄 Use Auto-Detection", use_container_width=True):
+            st.session_state.pop('custom_location', None)
+            st.session_state.pop('location', None)
+            st.session_state.pop('weather', None)
+            st.success("✅ Switched to automatic location detection")
+            time.sleep(1)
+            st.rerun()
+    
+    st.markdown("---")
+    st.subheader("�🔒 Account")
     
     if st.button("🚪 Logout", type="secondary", use_container_width=True):
         # Clear session cookie for persistent login
