@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+from urllib.parse import quote
 from session_utils import restore_session_from_cookie
 from github_utils import upload_to_github, delete_from_github
 from materials_utils import add_material, get_materials_by_section, delete_material
@@ -117,7 +118,9 @@ try:
                         st.caption(f"Uploaded: {uploaded_at}")
                         
                         if file_url:
-                            st.link_button("View File", file_url, type="primary", use_container_width=True)
+                            # Use Mozilla PDF.js viewer to open PDF inline in browser
+                            viewer_url = f"https://mozilla.github.io/pdf.js/web/viewer.html?file={quote(file_url)}"
+                            st.link_button("View File", viewer_url, type="primary", use_container_width=True)
                     
                     with col2:
                         # Show delete button (only for uploader)
