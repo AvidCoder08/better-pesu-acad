@@ -581,6 +581,11 @@ def show_courses():
                         
                         st.markdown(f"### 📘 {all_courses.get(selected_course, selected_course)}")
                         st.caption(f"Showing {len(course_materials)} {selected_type.lower()} file(s)")
+                        
+                        # Show special link for C Programming Lab Materials
+                        if selected_course == "2ND_SEM_C_PROGRAMMING" and selected_type == "Lab Materials":
+                            st.info("📚 Check out [Shashank's C Programming Lab Notes](https://shashanknotes.notion.site/?pvs=74) for detailed explanations!")
+                        
                         st.markdown("---")
                         
                         for i, material in enumerate(course_materials):
