@@ -118,9 +118,12 @@ try:
                         st.caption(f"Uploaded: {uploaded_at}")
                         
                         if file_url:
-                            # Use Mozilla PDF.js viewer to open PDF inline in browser
-                            viewer_url = f"https://mozilla.github.io/pdf.js/web/viewer.html?file={quote(file_url)}"
-                            st.link_button("View File", viewer_url, type="primary", use_container_width=True)
+                            if st.button("View File", key=f"view_{course_code}_{i}", use_container_width=True):
+                                st.session_state[f"expand_pdf_{course_code}_{i}"] = True
+                        
+                        if st.session_state.get(f"expand_pdf_{course_code}_{i}", False):
+                            st.markdown(f"**Viewing: {filename}**")
+                            st.components.v1.iframe(file_url, height=700)
                     
                     with col2:
                         # Show delete button (only for uploader)
