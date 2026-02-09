@@ -611,15 +611,17 @@ def show_courses():
                                     st.session_state[f"editing_{course_code}_{i}"] = True
                             
                             with col3:
-                                if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
-                                    try:
-                                        if not storage_path:
-                                            storage_path = f"course_materials/{course_code}/{filename}"
-                                        delete_from_github(storage_path)
-                                        delete_material(course_code, filename)
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Failed to delete: {str(e)}")
+                                # Only show delete button for admin user
+                                if st.session_state.user_email == "soham.shashank@outlook.com":
+                                    if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
+                                        try:
+                                            if not storage_path:
+                                                storage_path = f"course_materials/{course_code}/{filename}"
+                                            delete_from_github(storage_path)
+                                            delete_material(course_code, filename)
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Failed to delete: {str(e)}")
                             
                             if st.session_state.get(f"editing_{course_code}_{i}", False):
                                 with st.container():
