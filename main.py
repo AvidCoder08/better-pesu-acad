@@ -5,7 +5,7 @@ import time
 import requests
 from firebase_auth import sign_up, sign_in, send_password_reset, confirm_password_reset
 from github_utils import upload_to_github, delete_from_github, save_user_profile, get_user_profile
-from materials_utils import add_material, get_materials_by_section, delete_material
+from materials_utils import add_material, get_materials_by_section, delete_material, update_material_type
 from session_utils import restore_session_from_cookie, save_session_cookie, clear_session_cookie
 from streamlit_geolocation import streamlit_geolocation
 import os
@@ -432,6 +432,42 @@ def show_courses():
     st.caption("Share & manage course materials organized by subject")
     
     user_email = st.session_state.get('user_email', 'Unknown')
+
+    def _extract_storage_path(file_url):
+        if not file_url:
+            return None
+        if "raw.githubusercontent.com/" in file_url:
+            tail = file_url.split("raw.githubusercontent.com/", 1)[1]
+            parts = tail.split("/")
+            if len(parts) >= 3:
+                return "/".join(parts[2:])
+        if "cdn.jsdelivr.net/gh/" in file_url:
+            tail = file_url.split("cdn.jsdelivr.net/gh/", 1)[1]
+            parts = tail.split("/")
+            if len(parts) >= 2:
+                return "/".join(parts[1:])
+        return None
+
+    def _parse_course_and_type(storage_path):
+        if not storage_path or "course_materials/" not in storage_path:
+            return None, None
+        tail = storage_path.split("course_materials/", 1)[1]
+        parts = tail.split("/")
+        course_code = parts[0] if len(parts) >= 1 else None
+        material_type = None
+        if len(parts) >= 2:
+            material_type = None if "." in parts[1] else parts[1]
+        return course_code, material_type
+
+    def _format_course_title(course_code):
+        if not course_code:
+            return "Unknown"
+        if course_code.startswith("2ND_SEM_"):
+            subject = course_code.replace("2ND_SEM_", "").replace("_", " ").title()
+            return f"2nd Semester - {subject}"
+        if "_" in course_code:
+            return course_code.replace("_", " ").title()
+        return course_code
     
     st.divider()
     
@@ -447,69 +483,131 @@ def show_courses():
             if not materials:
                 st.info("No materials uploaded yet. Be the first to share! 🚀")
             else:
-                materials_by_course = {}
+                normalized = []
+                all_courses = {}
+                material_types = set()
                 for material in materials:
-                    course_code = material.get("course_code", "Unknown")
-                    if course_code not in materials_by_course:
-                        materials_by_course[course_code] = []
-                    materials_by_course[course_code].append(material)
+                    file_url = material.get("file_url")
+                    storage_path = _extract_storage_path(file_url)
+                    path_course_code, path_type = _parse_course_and_type(storage_path)
+
+                    filename = material.get("filename")
+                    if not filename and storage_path:
+                        filename = storage_path.split("/")[-1]
+                    if not filename:
+                        filename = "file"
+
+                    course_code = material.get("course_code") or path_course_code or "Unknown"
+                    course_title = _format_course_title(course_code)
+
+                    material_type = material.get("material_type") or material.get("section") or path_type or "Other"
+
+                    normalized_item = {
+                        "course_code": course_code,
+                        "course_title": course_title,
+                        "filename": filename,
+                        "file_url": file_url,
+                        "material_type": material_type,
+                        "uploaded_at": material.get("uploaded_at", "Unknown date"),
+                        "storage_path": storage_path,
+                    }
+                    normalized.append(normalized_item)
+
+                    all_courses[course_code] = course_title
+                    material_types.add(material_type)
                 
-                for course_code in sorted(materials_by_course.keys()):
-                    course_materials = materials_by_course[course_code]
-                    course_title = course_materials[0].get("course_title", course_code)
+                col1, col2 = st.columns(2)
+                with col1:
+                    course_codes = sorted(all_courses.keys())
+                    selected_course = st.selectbox(
+                        "Select Subject",
+                        options=course_codes,
+                        index=None,
+                        format_func=lambda code: all_courses.get(code, code),
+                        placeholder="Choose a subject..."
+                    )
+                with col2:
+                    selected_type = st.selectbox(
+                        "Select Material Type",
+                        options=sorted(material_types),
+                        index=None,
+                        placeholder="Choose material type..."
+                    )
+                
+                if selected_course and selected_type:
+                    course_code_filter = selected_course
+                    filtered_materials = [
+                        m for m in normalized
+                        if m.get("course_code") == course_code_filter
+                        and m.get("material_type") == selected_type
+                    ]
                     
-                    with st.expander(f"📘 {course_code} - {course_title}", expanded=False):
-                        course_materials = sorted(course_materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
+                    if not filtered_materials:
+                        st.info("No materials found for this selection. 🔍")
+                    else:
+                        course_materials = sorted(filtered_materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
                         
-                        # Group by category
-                        materials_by_category = {}
-                        for material in course_materials:
-                            category = material.get("section", "Other")
-                            if category not in materials_by_category:
-                                materials_by_category[category] = []
-                            materials_by_category[category].append(material)
+                        st.markdown(f"### 📘 {all_courses.get(selected_course, selected_course)}")
+                        st.caption(f"Showing {len(course_materials)} {selected_type.lower()} file(s)")
+                        st.markdown("---")
                         
-                        # Display by category
-                        category_icons = {
-                            "Textbook": "📚",
-                            "Notes": "📝",
-                            "Slides": "🖼️",
-                            "Lab": "🔬",
-                            "Other": "📁"
-                        }
-                        
-                        for category in sorted(materials_by_category.keys()):
-                            cat_materials = materials_by_category[category]
-                            icon = category_icons.get(category, "📁")
-                            st.markdown(f"**{icon} {category}**")
+                        for i, material in enumerate(course_materials):
+                            filename = material.get("filename", "file")
+                            uploaded_at = material.get("uploaded_at", "Unknown date")
+                            material_type = material.get("material_type", "Other")
+                            file_url = material.get("file_url")
+                            course_code = material.get("course_code", "Unknown")
+                            storage_path = material.get("storage_path")
                             
-                            for i, material in enumerate(cat_materials):
-                                col1, col2 = st.columns([4, 1])
+                            col1, col2, col3 = st.columns([3, 1, 0.3])
+                            
+                            with col1:
+                                st.markdown(f"**📄 {filename}**")
+                                st.caption(f"Uploaded: {uploaded_at}")
                                 
-                                with col1:
-                                    filename = material.get("filename", "file")
-                                    uploaded_at = material.get("uploaded_at", "Unknown date")
-                                    file_url = material.get("file_url")
-                                    
-                                    st.markdown(f"📄 {filename}")
-                                    st.caption(f"Uploaded: {uploaded_at}")
-                                    
-                                    if file_url:
-                                        st.link_button("View File", file_url, type="primary", use_container_width=True)
-                                
-                                with col2:
-                                    if st.button("🗑️", key=f"del_{course_code}_{category}_{i}", help="Delete this material"):
-                                        try:
-                                            storage_path = f"course_materials/{course_code}/{category}/{filename}"
-                                            delete_from_github(storage_path)
-                                            delete_material(course_code, filename)
+                                if file_url:
+                                    st.link_button("View File", file_url, type="primary", use_container_width=True)
+                            
+                            with col2:
+                                edit_key = f"edit_{course_code}_{i}"
+                                if st.button("✏️ Edit Type", key=edit_key, use_container_width=True):
+                                    st.session_state[f"editing_{course_code}_{i}"] = True
+                            
+                            with col3:
+                                if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
+                                    try:
+                                        if not storage_path:
+                                            storage_path = f"course_materials/{course_code}/{filename}"
+                                        delete_from_github(storage_path)
+                                        delete_material(course_code, filename)
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Failed to delete: {str(e)}")
+                            
+                            if st.session_state.get(f"editing_{course_code}_{i}", False):
+                                with st.container():
+                                    st.markdown("**Edit Material Type:**")
+                                    type_options = ["Slides", "Notes", "Assignments", "Question Papers", "Solutions", "Lab Materials", "Other"]
+                                    new_type = st.selectbox(
+                                        "Select new type",
+                                        options=type_options,
+                                        index=type_options.index(material_type) if material_type in type_options else len(type_options) - 1,
+                                        key=f"type_select_{course_code}_{i}"
+                                    )
+                                    col_save, col_cancel = st.columns(2)
+                                    with col_save:
+                                        if st.button("💾 Save", key=f"save_{course_code}_{i}", use_container_width=True):
+                                            update_material_type(course_code, filename, new_type)
+                                            st.session_state[f"editing_{course_code}_{i}"] = False
                                             st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Failed to delete: {str(e)}")
-                                
-                                st.divider()
+                                    with col_cancel:
+                                        if st.button("❌ Cancel", key=f"cancel_{course_code}_{i}", use_container_width=True):
+                                            st.session_state[f"editing_{course_code}_{i}"] = False
+                                            st.rerun()
                             
-                            st.markdown("")
+                            st.divider()
+                else:
+                    st.info("👆 Select both a subject and material type to view files")
         
         except Exception as e:
             st.error(f"Error loading materials: {str(e)}")
@@ -573,7 +671,8 @@ def show_courses():
                                     file_url=public_url,
                                     section=category,
                                     uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                    uploaded_by=user_email
+                                    uploaded_by=user_email,
+                                    material_type=category
                                 )
                         
                         st.success(f"✅ Successfully uploaded {len(files)} file(s) to {course_title} ({category})!")

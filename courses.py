@@ -147,7 +147,6 @@ with tab1:
                     st.markdown("---")
                     
                     for i, material in enumerate(course_materials):
-                    for i, material in enumerate(course_materials):
                         filename = material.get("filename", "file")
                         uploaded_at = material.get("uploaded_at", "Unknown date")
                         uploaded_by = material.get("uploaded_by", "Unknown user")
