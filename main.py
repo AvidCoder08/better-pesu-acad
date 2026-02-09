@@ -316,7 +316,13 @@ def get_location():
     except:
         pass
     
-    return None
+    # Default fallback to Bengaluru
+    return {
+        'city': 'Bengaluru',
+        'lat': 12.9716,
+        'lon': 77.5946,
+        'source': 'default'
+    }
 
 def get_weather(lat, lon):
     """Get weather data using Open-Meteo API (no API key required)."""
