@@ -22,166 +22,171 @@ else:
     user_ids = personal.puid if personal and hasattr(personal, 'puid') else []
 
 st.markdown("---")
-st.subheader("📤 Upload Materials")
-st.caption("Upload course materials to share with others")
 
-with st.form("upload_materials", clear_on_submit=True):
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        course_code = st.text_input("Course Code", placeholder="UE22CS202", help="e.g., UE22CS202")
-    
-    with col2:
-        course_title = st.text_input("Course Title", placeholder="Data Structures", help="e.g., Data Structures")
-    
-    material_type = st.selectbox(
-        "Material Type",
-        options=["Slides", "Notes", "Assignments", "Question Papers", "Solutions", "Lab Materials", "Other"],
-        index=None,
-        placeholder="Select type"
-    )
-    
-    files = st.file_uploader("Upload files", accept_multiple_files=True, help="Select one or more files to upload")
-    
-    submit = st.form_submit_button("Upload", type="primary", use_container_width=True)
+# Create tabs
+tab1, tab2 = st.tabs(["Browse Materials", "Upload Materials"])
 
-    if submit:
-        if not course_code.strip():
-            st.error("Course code is required! 📝")
-        elif not course_title.strip():
-            st.error("Course title is required! 📝")
-        elif not material_type:
-            st.error("Please select a material type! 🏷️")
-        elif not files:
-            st.error("Please select at least one file to upload! 📁")
-        else:
-            try:
-                with st.spinner(f"Uploading {len(files)} file(s)..."):
-                    for uploaded_file in files:
-                        # Create storage path - organized by subject/course code
-                        storage_path = f"course_materials/{course_code.strip()}/{uploaded_file.name}"
-                        
-                        # Upload to GitHub
-                        public_url = upload_to_github(
-                            uploaded_file.getvalue(), 
-                            storage_path, 
-                            commit_message=f"Upload {course_code.strip()}: {uploaded_file.name}"
-                        )
-                        
-                        # Add to materials database
-                        add_material(
-                            course_code=course_code.strip(),
-                            course_title=course_title.strip(),
-                            filename=uploaded_file.name,
-                            file_url=public_url,
-                            section=None,  # No section classification
-                            uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            uploaded_by=user_ids[0] if user_ids else "Unknown",
-                            material_type=material_type
-                        )
-                
-                st.success(f"✅ Successfully uploaded {len(files)} file(s)!")
-                
-            except Exception as e:
-                st.error(f"Upload failed: {str(e)}")
+with tab2:
+    st.subheader("📤 Upload Materials")
+    st.caption("Upload course materials to share with others")
 
-st.markdown("---")
-st.subheader("📚 Available Materials")
-
-try:
-    # Get all materials (not filtered by section anymore)
-    materials = get_materials_by_section(None, None)
-    
-    if not materials:
-        st.info("No materials uploaded yet. Be the first to share! 🚀")
-    else:
-        # Extract unique courses and material types
-        all_courses = {}
-        material_types = set()
-        for material in materials:
-            course_code = material.get("course_code", "Unknown")
-            course_title = material.get("course_title", course_code)
-            all_courses[course_code] = course_title
-            
-            mat_type = material.get("material_type", "Other")
-            material_types.add(mat_type)
-        
-        # Filter dropdowns
+    with st.form("upload_materials", clear_on_submit=True):
         col1, col2 = st.columns(2)
+        
         with col1:
-            selected_course = st.selectbox(
-                "Filter by Subject",
-                options=[f"{code} - {title}" for code, title in sorted(all_courses.items())],
-                index=None,
-                placeholder="All Subjects"
-            )
+            course_code = st.text_input("Course Code", placeholder="UE22CS202", help="e.g., UE22CS202")
+        
         with col2:
-            selected_type = st.selectbox(
-                "Filter by Material Type",
-                options=sorted(material_types),
-                index=None,
-                placeholder="All Types"
-            )
+            course_title = st.text_input("Course Title", placeholder="Data Structures", help="e.g., Data Structures")
         
-        # Apply filters
-        filtered_materials = materials
-        if selected_course:
-            course_code_filter = selected_course.split(" - ")[0]
-            filtered_materials = [m for m in filtered_materials if m.get("course_code") == course_code_filter]
-        if selected_type:
-            filtered_materials = [m for m in filtered_materials if m.get("material_type") == selected_type]
+        material_type = st.selectbox(
+            "Material Type",
+            options=["Slides", "Notes", "Assignments", "Question Papers", "Solutions", "Lab Materials", "Other"],
+            index=None,
+            placeholder="Select type"
+        )
         
-        # Group materials by course code
-        materials_by_course = {}
-        for material in filtered_materials:
-            course_code = material.get("course_code", "Unknown")
-            if course_code not in materials_by_course:
-                materials_by_course[course_code] = []
-            materials_by_course[course_code].append(material)
+        files = st.file_uploader("Upload files", accept_multiple_files=True, help="Select one or more files to upload")
         
-        if not materials_by_course:
-            st.info("No materials match your filters. Try adjusting your selection! 🔍")
-        
-        # Display materials organized by course
-        for course_code in sorted(materials_by_course.keys()):
-            course_materials = materials_by_course[course_code]
-            
-            # Get course title from first material entry
-            course_title = course_materials[0].get("course_title", course_code)
-            
-            with st.expander(f"📘 {course_code} - {course_title}", expanded=False):
-                # Sort by upload date
-                course_materials = sorted(course_materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
-                
-                for i, material in enumerate(course_materials):
-                    col1, col2 = st.columns([4, 1])
-                    
-                    with col1:
-                        filename = material.get("filename", "file")
-                        uploaded_at = material.get("uploaded_at", "Unknown date")
-                        uploaded_by = material.get("uploaded_by", "Unknown user")
-                        material_type = material.get("material_type", "Other")
-                        file_url = material.get("file_url")
-                        
-                        st.markdown(f"**📄 {filename}** · `{material_type}`")
-                        st.caption(f"Uploaded: {uploaded_at}")
-                        
-                        if file_url:
-                            st.link_button("View File", file_url, type="primary", use_container_width=True)
-                    
-                    with col2:
-                        # Show delete button (only for uploader)
-                        if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
-                            try:
-                                storage_path = f"course_materials/{course_code}/{filename}"
-                                delete_from_github(storage_path)
-                                delete_material(course_code, filename)
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Failed to delete: {str(e)}")
-                    
-                    st.divider()
+        submit = st.form_submit_button("Upload", type="primary", use_container_width=True)
 
-except Exception as e:
-    st.error(f"Error loading materials: {str(e)}")
+        if submit:
+            if not course_code.strip():
+                st.error("Course code is required! 📝")
+            elif not course_title.strip():
+                st.error("Course title is required! 📝")
+            elif not material_type:
+                st.error("Please select a material type! 🏷️")
+            elif not files:
+                st.error("Please select at least one file to upload! 📁")
+            else:
+                try:
+                    with st.spinner(f"Uploading {len(files)} file(s)..."):
+                        for uploaded_file in files:
+                            # Create storage path - organized by subject/course code
+                            storage_path = f"course_materials/{course_code.strip()}/{uploaded_file.name}"
+                            
+                            # Upload to GitHub
+                            public_url = upload_to_github(
+                                uploaded_file.getvalue(), 
+                                storage_path, 
+                                commit_message=f"Upload {course_code.strip()}: {uploaded_file.name}"
+                            )
+                            
+                            # Add to materials database
+                            add_material(
+                                course_code=course_code.strip(),
+                                course_title=course_title.strip(),
+                                filename=uploaded_file.name,
+                                file_url=public_url,
+                                section=None,  # No section classification
+                                uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                uploaded_by=user_ids[0] if user_ids else "Unknown",
+                                material_type=material_type
+                            )
+                    
+                    st.success(f"✅ Successfully uploaded {len(files)} file(s)!")
+                    
+                except Exception as e:
+                    st.error(f"Upload failed: {str(e)}")
+
+with tab1:
+    st.subheader("📚 Available Materials")
+
+    try:
+        # Get all materials (not filtered by section anymore)
+        materials = get_materials_by_section(None, None)
+        
+        if not materials:
+            st.info("No materials uploaded yet. Be the first to share! 🚀")
+        else:
+            # Extract unique courses and material types
+            all_courses = {}
+            material_types = set()
+            for material in materials:
+                course_code = material.get("course_code", "Unknown")
+                course_title = material.get("course_title", course_code)
+                all_courses[course_code] = course_title
+                
+                mat_type = material.get("material_type", "Other")
+                material_types.add(mat_type)
+            
+            # Filter dropdowns
+            col1, col2 = st.columns(2)
+            with col1:
+                selected_course = st.selectbox(
+                    "Filter by Subject",
+                    options=[f"{code} - {title}" for code, title in sorted(all_courses.items())],
+                    index=None,
+                    placeholder="All Subjects"
+                )
+            with col2:
+                selected_type = st.selectbox(
+                    "Filter by Material Type",
+                    options=sorted(material_types),
+                    index=None,
+                    placeholder="All Types"
+                )
+            
+            # Apply filters
+            filtered_materials = materials
+            if selected_course:
+                course_code_filter = selected_course.split(" - ")[0]
+                filtered_materials = [m for m in filtered_materials if m.get("course_code") == course_code_filter]
+            if selected_type:
+                filtered_materials = [m for m in filtered_materials if m.get("material_type") == selected_type]
+            
+            # Group materials by course code
+            materials_by_course = {}
+            for material in filtered_materials:
+                course_code = material.get("course_code", "Unknown")
+                if course_code not in materials_by_course:
+                    materials_by_course[course_code] = []
+                materials_by_course[course_code].append(material)
+            
+            if not materials_by_course:
+                st.info("No materials match your filters. Try adjusting your selection! 🔍")
+            
+            # Display materials organized by course
+            for course_code in sorted(materials_by_course.keys()):
+                course_materials = materials_by_course[course_code]
+                
+                # Get course title from first material entry
+                course_title = course_materials[0].get("course_title", course_code)
+                
+                with st.expander(f"📘 {course_code} - {course_title}", expanded=False):
+                    # Sort by upload date
+                    course_materials = sorted(course_materials, key=lambda x: x.get("uploaded_at", ""), reverse=True)
+                    
+                    for i, material in enumerate(course_materials):
+                        col1, col2 = st.columns([4, 1])
+                        
+                        with col1:
+                            filename = material.get("filename", "file")
+                            uploaded_at = material.get("uploaded_at", "Unknown date")
+                            uploaded_by = material.get("uploaded_by", "Unknown user")
+                            material_type = material.get("material_type", "Other")
+                            file_url = material.get("file_url")
+                            
+                            st.markdown(f"**📄 {filename}** · `{material_type}`")
+                            st.caption(f"Uploaded: {uploaded_at}")
+                            
+                            if file_url:
+                                st.link_button("View File", file_url, type="primary", use_container_width=True)
+                        
+                        with col2:
+                            # Show delete button (only for uploader)
+                            if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
+                                try:
+                                    storage_path = f"course_materials/{course_code}/{filename}"
+                                    delete_from_github(storage_path)
+                                    delete_material(course_code, filename)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Failed to delete: {str(e)}")
+                        
+                        st.divider()
+
+    except Exception as e:
+        st.error(f"Error loading materials: {str(e)}")
 
