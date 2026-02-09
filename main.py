@@ -34,6 +34,8 @@ if 'id_token' not in st.session_state:
     st.session_state.id_token = None
 if 'custom_location' not in st.session_state:
     st.session_state.custom_location = None
+if 'tasks' not in st.session_state:
+    st.session_state.tasks = []
 
 # Restore session from cookie on app startup
 restore_session_from_cookie()
