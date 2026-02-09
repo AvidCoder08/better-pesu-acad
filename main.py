@@ -368,11 +368,13 @@ def show_dashboard():
     
     with col1:
         date_str = current_time.strftime("%A, %B %d, %Y")
-        st.metric("📅 Date", date_str)
+        st.write("**📅 Date**")
+        st.caption(date_str)
     
     with col2:
         time_str = current_time.strftime("%I:%M %p")
-        st.metric("🕐 Time", time_str)
+        st.write("**🕐 Time**")
+        st.caption(time_str)
     
     with col3:
         # Get weather - automatically load location
@@ -389,11 +391,14 @@ def show_dashboard():
             if weather:
                 temp = weather['temperature']
                 desc = weather['description']
-                st.metric(f"🌤️ {location['city']}", f"{temp}°C - {desc}")
+                st.write(f"**🌤️ {location['city']}**")
+                st.caption(f"{temp}°C - {desc}")
             else:
-                st.metric("🌤️ Weather", "Unavailable - Check location settings")
+                st.write("**🌤️ Weather**")
+                st.caption("Unavailable - Check location settings")
         else:
-            st.metric("🌤️ Weather", "Unavailable - Check location settings")
+            st.write("**🌤️ Weather**")
+            st.caption("Unavailable - Check location settings")
     
     st.markdown("---")
     
@@ -709,15 +714,18 @@ def show_settings():
     st.markdown("---")
     st.subheader("👤 Profile Information")
     
-    # Display user profile info in a nice format
+    # Display user profile info with smaller text
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Full Name", st.session_state.user_name or "Not set")
+        st.write("**Full Name**")
+        st.caption(st.session_state.user_name or "Not set")
     with col2:
-        st.metric("Branch", st.session_state.user_branch or "Not set")
+        st.write("**Branch**")
+        st.caption(st.session_state.user_branch or "Not set")
     with col3:
-        st.metric("Email", st.session_state.user_email or "Not set")
+        st.write("**Email**")
+        st.caption(st.session_state.user_email or "Not set")
     
     st.markdown("---")
     st.subheader("✏️ Edit Profile")
