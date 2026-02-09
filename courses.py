@@ -34,6 +34,13 @@ with st.form("upload_materials", clear_on_submit=True):
     with col2:
         course_title = st.text_input("Course Title", placeholder="Data Structures", help="e.g., Data Structures")
     
+    material_type = st.selectbox(
+        "Material Type",
+        options=["Slides", "Notes", "Assignments", "Question Papers", "Solutions", "Lab Materials", "Other"],
+        index=None,
+        placeholder="Select type"
+    )
+    
     files = st.file_uploader("Upload files", accept_multiple_files=True, help="Select one or more files to upload")
     
     submit = st.form_submit_button("Upload", type="primary", use_container_width=True)
@@ -43,6 +50,8 @@ with st.form("upload_materials", clear_on_submit=True):
             st.error("Course code is required! 📝")
         elif not course_title.strip():
             st.error("Course title is required! 📝")
+        elif not material_type:
+            st.error("Please select a material type! 🏷️")
         elif not files:
             st.error("Please select at least one file to upload! 📁")
         else:
@@ -67,7 +76,8 @@ with st.form("upload_materials", clear_on_submit=True):
                             file_url=public_url,
                             section=None,  # No section classification
                             uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            uploaded_by=user_ids[0] if user_ids else "Unknown"
+                            uploaded_by=user_ids[0] if user_ids else "Unknown",
+                            material_type=material_type
                         )
                 
                 st.success(f"✅ Successfully uploaded {len(files)} file(s)!")
@@ -85,13 +95,52 @@ try:
     if not materials:
         st.info("No materials uploaded yet. Be the first to share! 🚀")
     else:
+        # Extract unique courses and material types
+        all_courses = {}
+        material_types = set()
+        for material in materials:
+            course_code = material.get("course_code", "Unknown")
+            course_title = material.get("course_title", course_code)
+            all_courses[course_code] = course_title
+            
+            mat_type = material.get("material_type", "Other")
+            material_types.add(mat_type)
+        
+        # Filter dropdowns
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_course = st.selectbox(
+                "Filter by Subject",
+                options=[f"{code} - {title}" for code, title in sorted(all_courses.items())],
+                index=None,
+                placeholder="All Subjects"
+            )
+        with col2:
+            selected_type = st.selectbox(
+                "Filter by Material Type",
+                options=sorted(material_types),
+                index=None,
+                placeholder="All Types"
+            )
+        
+        # Apply filters
+        filtered_materials = materials
+        if selected_course:
+            course_code_filter = selected_course.split(" - ")[0]
+            filtered_materials = [m for m in filtered_materials if m.get("course_code") == course_code_filter]
+        if selected_type:
+            filtered_materials = [m for m in filtered_materials if m.get("material_type") == selected_type]
+        
         # Group materials by course code
         materials_by_course = {}
-        for material in materials:
+        for material in filtered_materials:
             course_code = material.get("course_code", "Unknown")
             if course_code not in materials_by_course:
                 materials_by_course[course_code] = []
             materials_by_course[course_code].append(material)
+        
+        if not materials_by_course:
+            st.info("No materials match your filters. Try adjusting your selection! 🔍")
         
         # Display materials organized by course
         for course_code in sorted(materials_by_course.keys()):
@@ -111,9 +160,10 @@ try:
                         filename = material.get("filename", "file")
                         uploaded_at = material.get("uploaded_at", "Unknown date")
                         uploaded_by = material.get("uploaded_by", "Unknown user")
+                        material_type = material.get("material_type", "Other")
                         file_url = material.get("file_url")
                         
-                        st.markdown(f"**📄 {filename}**")
+                        st.markdown(f"**📄 {filename}** · `{material_type}`")
                         st.caption(f"Uploaded: {uploaded_at}")
                         
                         if file_url:

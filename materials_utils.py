@@ -49,7 +49,7 @@ def save_materials(materials):
 
 
 def add_material(course_code, course_title, filename, file_url, 
-                 section=None, uploaded_at=None, uploaded_by=None):
+                 section=None, uploaded_at=None, uploaded_by=None, material_type=None):
     """
     Add a new material.
     
@@ -61,6 +61,7 @@ def add_material(course_code, course_title, filename, file_url,
         section: Not used anymore (for backward compatibility)
         uploaded_at: Timestamp of upload (if not provided, uses current time)
         uploaded_by: User who uploaded (if not provided, uses 'Unknown')
+        material_type: Type of material (Slides, Notes, Assignments, etc.)
     """
     materials = get_materials()
 
@@ -73,6 +74,7 @@ def add_material(course_code, course_title, filename, file_url,
         "course_title": course_title,
         "filename": filename,
         "file_url": file_url,
+        "material_type": material_type or "Other",
         "uploaded_by": uploaded_by or "Unknown",
         "uploaded_at": uploaded_at or datetime.utcnow().isoformat()
     }
