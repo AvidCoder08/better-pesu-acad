@@ -90,9 +90,10 @@ def upload_to_github(file_bytes, file_path, commit_message=None):
     if response.status_code not in [200, 201]:
         raise RuntimeError(f"Failed to upload to GitHub: {response.status_code} - {response.text}")
     
-    # Return the raw content URL
-    raw_url = f"https://raw.githubusercontent.com/{config['repo']}/{config['branch']}/{file_path}"
-    return raw_url
+    # Return the raw content URL using jsdelivr CDN for better browser compatibility
+    # jsdelivr serves files with proper headers that allow viewing in browser without downloading
+    jsdelivr_url = f"https://cdn.jsdelivr.net/gh/{config['repo']}@{config['branch']}/{file_path}"
+    return jsdelivr_url
 
 
 def delete_from_github(file_path):

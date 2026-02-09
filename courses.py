@@ -1,6 +1,5 @@
 import streamlit as st
 from datetime import datetime
-from urllib.parse import quote
 from session_utils import restore_session_from_cookie
 from github_utils import upload_to_github, delete_from_github
 from materials_utils import add_material, get_materials_by_section, delete_material
@@ -118,12 +117,7 @@ try:
                         st.caption(f"Uploaded: {uploaded_at}")
                         
                         if file_url:
-                            if st.button("View File", key=f"view_{course_code}_{i}", use_container_width=True):
-                                st.session_state[f"expand_pdf_{course_code}_{i}"] = True
-                        
-                        if st.session_state.get(f"expand_pdf_{course_code}_{i}", False):
-                            st.markdown(f"**Viewing: {filename}**")
-                            st.components.v1.iframe(file_url, height=700)
+                            st.link_button("View File", file_url, type="primary", use_container_width=True)
                     
                     with col2:
                         # Show delete button (only for uploader)
