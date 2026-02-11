@@ -7,6 +7,9 @@ import streamlit as st
 
 load_dotenv()
 
+# Max file size for uploads: 50MB (in bytes)
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+
 
 def _get_github_config():
     """Get GitHub repository configuration from Streamlit secrets or environment variables."""
@@ -49,8 +52,18 @@ def upload_to_github(file_bytes, file_path, commit_message=None):
     
     Returns:
         str: Raw URL to access the file
+    
+    Raises:
+        RuntimeError: If file exceeds max size limit
     """
     config = _get_github_config()
+    
+    # Check file size
+    file_size = len(file_bytes)
+    if file_size > MAX_FILE_SIZE:
+        max_size_mb = MAX_FILE_SIZE / (1024 * 1024)
+        file_size_mb = file_size / (1024 * 1024)
+        raise RuntimeError(f"File size ({file_size_mb:.2f}MB) exceeds maximum allowed size ({max_size_mb:.0f}MB)")
     
     # Encode file content to base64
     content_base64 = base64.b64encode(file_bytes).decode('utf-8')

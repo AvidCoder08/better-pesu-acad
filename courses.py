@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 from session_utils import restore_session_from_cookie
-from github_utils import upload_to_github, delete_from_github
+from github_utils import upload_to_github, delete_from_github, MAX_FILE_SIZE
 from materials_utils import add_material, get_materials_by_section, delete_material, update_material_type
 
 restore_session_from_cookie()
@@ -60,35 +60,47 @@ with tab2:
             elif not files:
                 st.error("Please select at least one file to upload! 📁")
             else:
-                try:
-                    with st.spinner(f"Uploading {len(files)} file(s)..."):
-                        for uploaded_file in files:
-                            # Create storage path - organized by subject/course code
-                            storage_path = f"course_materials/{course_code.strip()}/{uploaded_file.name}"
-                            
-                            # Upload to GitHub
-                            public_url = upload_to_github(
-                                uploaded_file.getvalue(), 
-                                storage_path, 
-                                commit_message=f"Upload {course_code.strip()}: {uploaded_file.name}"
-                            )
-                            
-                            # Add to materials database
-                            add_material(
-                                course_code=course_code.strip(),
-                                course_title=course_title.strip(),
-                                filename=uploaded_file.name,
-                                file_url=public_url,
-                                section=None,  # No section classification
-                                uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                uploaded_by=user_ids[0] if user_ids else "Unknown",
-                                material_type=material_type
-                            )
-                    
-                    st.success(f"✅ Successfully uploaded {len(files)} file(s)!")
-                    
-                except Exception as e:
-                    st.error(f"Upload failed: {str(e)}")
+                # Check file sizes
+                max_size_mb = MAX_FILE_SIZE / (1024 * 1024)
+                oversized_files = []
+                for uploaded_file in files:
+                    file_size = len(uploaded_file.getvalue())
+                    if file_size > MAX_FILE_SIZE:
+                        file_size_mb = file_size / (1024 * 1024)
+                        oversized_files.append(f"{uploaded_file.name} ({file_size_mb:.2f}MB)")
+                
+                if oversized_files:
+                    st.error(f"⚠️ The following files exceed the {max_size_mb:.0f}MB limit:\n" + "\n".join(oversized_files))
+                else:
+                    try:
+                        with st.spinner(f"Uploading {len(files)} file(s)..."):
+                            for uploaded_file in files:
+                                # Create storage path - organized by subject/course code
+                                storage_path = f"course_materials/{course_code.strip()}/{uploaded_file.name}"
+                                
+                                # Upload to GitHub
+                                public_url = upload_to_github(
+                                    uploaded_file.getvalue(), 
+                                    storage_path, 
+                                    commit_message=f"Upload {course_code.strip()}: {uploaded_file.name}"
+                                )
+                                
+                                # Add to materials database
+                                add_material(
+                                    course_code=course_code.strip(),
+                                    course_title=course_title.strip(),
+                                    filename=uploaded_file.name,
+                                    file_url=public_url,
+                                    section=None,  # No section classification
+                                    uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    uploaded_by=user_ids[0] if user_ids else "Unknown",
+                                    material_type=material_type
+                                )
+                        
+                        st.success(f"✅ Successfully uploaded {len(files)} file(s)!")
+                        
+                    except Exception as e:
+                        st.error(f"Upload failed: {str(e)}")
 
 with tab1:
     st.subheader("📚 Available Materials")

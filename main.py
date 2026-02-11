@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 import requests
 from firebase_auth import sign_up, sign_in, send_password_reset, confirm_password_reset
-from github_utils import upload_to_github, delete_from_github, save_user_profile, get_user_profile
+from github_utils import upload_to_github, delete_from_github, save_user_profile, get_user_profile, MAX_FILE_SIZE
 from materials_utils import add_material, get_materials_by_section, delete_material, update_material_type
 from session_utils import restore_session_from_cookie, save_session_cookie, clear_session_cookie
 from streamlit_geolocation import streamlit_geolocation
@@ -688,38 +688,50 @@ def show_courses():
                 elif not files:
                     st.error("Please select at least one file to upload! 📁")
                 else:
-                    try:
-                        # Generate course code and title from subject
-                        course_code = f"2ND_SEM_{subject.upper().replace(' ', '_')}"
-                        course_title = f"2nd Semester - {subject}"
-                        
-                        with st.spinner(f"Uploading {len(files)} file(s)..."):
-                            for uploaded_file in files:
-                                storage_path = f"course_materials/{course_code}/{category}/{uploaded_file.name}"
-                                
-                                public_url = upload_to_github(
-                                    uploaded_file.getvalue(), 
-                                    storage_path, 
-                                    commit_message=f"Upload {course_code} ({category}): {uploaded_file.name}"
-                                )
-                                
-                                add_material(
-                                    course_code=course_code,
-                                    course_title=course_title,
-                                    filename=uploaded_file.name,
-                                    file_url=public_url,
-                                    section=category,
-                                    uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                    uploaded_by=user_email,
-                                    material_type=category
-                                )
-                        
-                        st.success(f"✅ Successfully uploaded {len(files)} file(s) to {course_title} ({category})!")
-                        time.sleep(1)
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"Upload failed: {str(e)}")
+                    # Check file sizes
+                    max_size_mb = MAX_FILE_SIZE / (1024 * 1024)
+                    oversized_files = []
+                    for uploaded_file in files:
+                        file_size = len(uploaded_file.getvalue())
+                        if file_size > MAX_FILE_SIZE:
+                            file_size_mb = file_size / (1024 * 1024)
+                            oversized_files.append(f"{uploaded_file.name} ({file_size_mb:.2f}MB)")
+                    
+                    if oversized_files:
+                        st.error(f"⚠️ The following files exceed the {max_size_mb:.0f}MB limit:\n" + "\n".join(oversized_files))
+                    else:
+                        try:
+                            # Generate course code and title from subject
+                            course_code = f"2ND_SEM_{subject.upper().replace(' ', '_')}"
+                            course_title = f"2nd Semester - {subject}"
+                            
+                            with st.spinner(f"Uploading {len(files)} file(s)..."):
+                                for uploaded_file in files:
+                                    storage_path = f"course_materials/{course_code}/{category}/{uploaded_file.name}"
+                                    
+                                    public_url = upload_to_github(
+                                        uploaded_file.getvalue(), 
+                                        storage_path, 
+                                        commit_message=f"Upload {course_code} ({category}): {uploaded_file.name}"
+                                    )
+                                    
+                                    add_material(
+                                        course_code=course_code,
+                                        course_title=course_title,
+                                        filename=uploaded_file.name,
+                                        file_url=public_url,
+                                        section=category,
+                                        uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                        uploaded_by=user_email,
+                                        material_type=category
+                                    )
+                            
+                            st.success(f"✅ Successfully uploaded {len(files)} file(s) to {course_title} ({category})!")
+                            time.sleep(1)
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Upload failed: {str(e)}")
 
 # ==================== SETTINGS PAGE ====================
 def show_settings():
