@@ -10,7 +10,7 @@ from session_utils import restore_session_from_cookie, save_session_cookie, clea
 from streamlit_geolocation import streamlit_geolocation
 import os
 import extra_streamlit_components as stx
-
+print("hello")
 
 load_dotenv()
 
