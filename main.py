@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 import requests
 from firebase_auth import sign_up, sign_in, send_password_reset, confirm_password_reset
-from github_utils import upload_to_github, delete_from_github, save_user_profile, get_user_profile, MAX_FILE_SIZE, download_file_from_url
+from github_utils import upload_to_github, delete_from_github, save_user_profile, get_user_profile, MAX_FILE_SIZE
 from materials_utils import add_material, get_materials_by_section, delete_material, update_material_type
 from session_utils import restore_session_from_cookie, save_session_cookie, clear_session_cookie
 from streamlit_geolocation import streamlit_geolocation
@@ -595,28 +595,21 @@ def show_courses():
                             course_code = material.get("course_code", "Unknown")
                             storage_path = material.get("storage_path")
                             
-                            col1, col2, col3, col4 = st.columns([3, 0.8, 0.8, 0.3])
+                            col1, col2, col3 = st.columns([3, 1, 0.3])
                             
                             with col1:
                                 st.markdown(f"**📄 {filename}**")
                                 st.caption(f"Uploaded: {uploaded_at}")
+                                
+                                if file_url:
+                                    st.link_button("View File", file_url, type="primary", use_container_width=True)
                             
                             with col2:
-                                if file_url:
-                                    st.link_button("👁️ View", file_url, type="primary", use_container_width=True)
+                                edit_key = f"edit_{course_code}_{i}"
+                                if st.button("✏️ Edit Type", key=edit_key, use_container_width=True):
+                                    st.session_state[f"editing_{course_code}_{i}"] = True
                             
                             with col3:
-                                if file_url:
-                                    file_content = download_file_from_url(file_url)
-                                    if file_content:
-                                        st.download_button(
-                                            label="⬇️ Download",
-                                            data=file_content,
-                                            file_name=filename,
-                                            key=f"download_{course_code}_{i}"
-                                        )
-                            
-                            with col4:
                                 # Only show delete button for admin user
                                 if st.session_state.user_email == "soham.shashank@outlook.com":
                                     if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
