@@ -194,6 +194,37 @@ def get_github_file_url(file_path):
     return f"https://raw.githubusercontent.com/{config['repo']}/{config['branch']}/{file_path}"
 
 
+def download_file_from_url(url):
+    """
+    Download file content from a URL (supports GitHub raw URLs and jsdelivr CDN URLs).
+    
+    Args:
+        url: The URL to download from (can be raw.githubusercontent.com or cdn.jsdelivr.net)
+    
+    Returns:
+        bytes: File content, or None if download fails
+    """
+    try:
+        # Convert jsdelivr URLs to raw GitHub URLs for direct download
+        if "cdn.jsdelivr.net/gh/" in url:
+            # Convert jsdelivr URL to raw GitHub URL
+            # Example: https://cdn.jsdelivr.net/gh/user/repo@branch/path -> https://raw.githubusercontent.com/user/repo/branch/path
+            parts = url.split("cdn.jsdelivr.net/gh/", 1)[1]
+            if "@" in parts:
+                repo_and_path = parts.split("@", 1)
+                repo = repo_and_path[0]
+                branch_and_path = repo_and_path[1]
+                branch, path = branch_and_path.split("/", 1)
+                url = f"https://raw.githubusercontent.com/{repo}/{branch}/{path}"
+        
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        return response.content
+    except Exception as e:
+        st.error(f"Failed to download file: {str(e)}")
+        return None
+
+
 def save_user_profile(user_id, name, branch, email):
     """
     Save user profile to GitHub profiles.json file.

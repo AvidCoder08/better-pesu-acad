@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 from session_utils import restore_session_from_cookie
-from github_utils import upload_to_github, delete_from_github, MAX_FILE_SIZE
+from github_utils import upload_to_github, delete_from_github, download_file_from_url, MAX_FILE_SIZE
 from materials_utils import add_material, get_materials_by_section, delete_material, update_material_type
 
 restore_session_from_cookie()
@@ -166,22 +166,28 @@ with tab1:
                         file_url = material.get("file_url")
                         course_code = material.get("course_code", "Unknown")
                         
-                        col1, col2, col3 = st.columns([3, 1, 0.3])
+                        col1, col2, col3, col4 = st.columns([3, 0.8, 0.8, 0.3])
                         
                         with col1:
                             st.markdown(f"**📄 {filename}**")
                             st.caption(f"Uploaded: {uploaded_at}")
-                            
-                            if file_url:
-                                st.link_button("View File", file_url, type="primary", use_container_width=True)
                         
                         with col2:
-                            # Edit material type
-                            edit_key = f"edit_{course_code}_{i}"
-                            if st.button("✏️ Edit Type", key=edit_key, use_container_width=True):
-                                st.session_state[f"editing_{course_code}_{i}"] = True
+                            if file_url:
+                                st.link_button("👁️ View", file_url, type="primary", use_container_width=True)
                         
                         with col3:
+                            if file_url:
+                                file_content = download_file_from_url(file_url)
+                                if file_content:
+                                    st.download_button(
+                                        label="⬇️ Download",
+                                        data=file_content,
+                                        file_name=filename,
+                                        key=f"download_{course_code}_{i}"
+                                    )
+                        
+                        with col4:
                             # Show delete button
                             if st.button("🗑️", key=f"del_{course_code}_{i}", help="Delete this material"):
                                 try:
